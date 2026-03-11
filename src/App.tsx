@@ -3,12 +3,12 @@ import { TreeSidebar } from './components/TreeSidebar';
 import { CompanyStep } from './components/steps/CompanyStep';
 import { ScenarioStep } from './components/steps/ScenarioStep';
 import { FlowStep } from './components/steps/FlowStep';
-import { StepDefinitionStep } from './components/steps/StepDefinitionStep';
+
 import { ExecutionStep } from './components/steps/ExecutionStep';
 import { HomeView } from './components/steps/HomeView';
 
 const WizardContent = () => {
-  const { activeView } = useWizardState();
+  const { activeView, setActiveView } = useWizardState();
 
   const renderContent = () => {
     switch (activeView) {
@@ -16,7 +16,7 @@ const WizardContent = () => {
       case 'company': return <CompanyStep />;
       case 'scenario': return <ScenarioStep />;
       case 'flow': return <FlowStep />;
-      case 'steps': return <StepDefinitionStep />;
+
       case 'execution': return <ExecutionStep />;
       default: return <HomeView />;
     }
@@ -26,7 +26,7 @@ const WizardContent = () => {
     <div className="app-layout">
       {/* Header */}
       <header className="app-header">
-        <div className="brand">
+        <div className="brand clickable" onClick={() => setActiveView('home')} title="Ana Sayfaya Dön">
           <div className="logo-box">
             <i className="bi bi-robot"></i>
           </div>

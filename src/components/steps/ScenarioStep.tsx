@@ -16,10 +16,10 @@ export const ScenarioStep: React.FC = () => {
   const selectedCompany = companies.find(c => c.id === selectedCompanyId);
 
   useEffect(() => {
-    if (selectedCompanyId && scenarios.length === 0) {
+    if (selectedCompanyId) {
       api.listScenariosByCompany(selectedCompanyId).then(setScenarios).catch(console.error);
     }
-  }, [selectedCompanyId]);
+  }, [selectedCompanyId, setScenarios]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

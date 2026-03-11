@@ -254,8 +254,105 @@ a {
 }
 
 .tree-node.active {
-  background: var(--primary-soft);
-  border-right: 2px solid var(--primary);
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--primary-light);
+  border-left-color: var(--primary);
+}
+
+.home-icon {
+  color: #3b82f6;
+}
+
+.tree-divider {
+  height: 1px;
+  background: var(--glass-border);
+  margin: 0.75rem 0.5rem;
+}
+
+.tree-empty {
+  padding: 1.5rem 1rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: center;
+  text-align: center;
+}
+
+.tree-empty i {
+  font-size: 1.5rem;
+  opacity: 0.5;
+}
+
+.tree-inline-link {
+  background: none;
+  border: none;
+  color: var(--primary-light);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  font-size: 0.85rem;
+  display: block;
+  margin-top: 0.25rem;
+}
+
+.tree-inline-link:hover {
+  color: #fff;
+}
+
+.clickable {
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.clickable:hover {
+  opacity: 0.8;
+}
+
+.centered-form-container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 2rem;
+  height: 100%;
+}
+
+.max-w-lg {
+  max-width: 32rem;
+  width: 100%;
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.btn-outline-modern {
+  background: transparent;
+  border: 1px solid var(--glass-border);
+  color: #fff;
+  padding: 0.6rem 1.2rem;
+  border-radius: 8px;
+  transition: all 0.2s;
+}
+
+.btn-outline-modern:hover {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+/* Scrollable card lists */
+.card-list.scrollable {
+  max-height: 400px;
+  overflow-y: auto;
+  padding-right: 0.25rem;
+}
+
+.sticky-form {
+  position: sticky;
+  top: 0;
 }
 
 .tree-expand-btn {

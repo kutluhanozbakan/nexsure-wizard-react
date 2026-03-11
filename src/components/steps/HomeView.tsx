@@ -6,7 +6,7 @@ export const HomeView: React.FC = () => {
 
   React.useEffect(() => {
     loadCompanies();
-  }, []);
+  }, [loadCompanies]);
 
   return (
     <div className="home-view animate-fade-in">

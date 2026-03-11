@@ -14,8 +14,7 @@ interface FlowReadiness {
 
 export const ExecutionStep: React.FC = () => {
   const {
-    companies, scenarios, flows, selectedCompanyId, selectedScenarioId,
-    selectCompany, selectScenario
+    companies, selectedCompanyId, selectedScenarioId
   } = useWizardState();
 
   const [execCompanyId, setExecCompanyId] = useState<string>(selectedCompanyId || '');

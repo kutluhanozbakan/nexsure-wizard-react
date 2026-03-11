@@ -106,28 +106,24 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  const selectCompany = useCallback((id: string) => {
+  const selectCompany = (id: string) => {
     setSelectedCompanyId(id);
     setSelectedScenarioId(null);
     setSelectedFlowId(null);
-    setScenarios([]);
-    setFlows([]);
-    setSteps([]);
-    setHtmlCandidates([]);
-    setActiveView('company');
+    setScenarios([]); // Clear stale scenarios
+    setFlows([]);    // Clear stale flows
+    setSteps([]);    // Clear stale steps
+    setHtmlCandidates([]); // Clear stale candidates
+    setActiveView('scenario'); // Navigate to scenarios panel for this company
+  };
 
-    // Expand in tree & load scenarios
-    setExpandedCompanies(prev => new Set(prev).add(id));
-    api.listScenariosByCompany(id).then(setScenarios).catch(console.error);
-  }, []);
-
-  const selectScenario = useCallback((id: string) => {
+  const selectScenario = (id: string) => {
     setSelectedScenarioId(id);
     setSelectedFlowId(null);
-    setFlows([]);
-    setSteps([]);
-    setHtmlCandidates([]);
-    setActiveView('scenario');
+    setFlows([]);    // Clear stale flows
+    setSteps([]);    // Clear stale steps
+    setHtmlCandidates([]); // Clear stale candidates
+    setActiveView('flow'); // Navigate to flows panel for this scenario
 
     // Expand in tree & load flows
     setExpandedScenarios(prev => new Set(prev).add(id));
@@ -136,7 +132,7 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
       setFlows(sorted);
       setScenarioFlowsMap(prev => ({ ...prev, [id]: sorted }));
     }).catch(console.error);
-  }, []);
+  };
 
   const selectFlow = useCallback((id: string) => {
     setSelectedFlowId(id);
@@ -199,6 +195,7 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useWizardState = () => {
   const context = useContext(WizardContext);
   if (context === undefined) {

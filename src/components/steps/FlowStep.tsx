@@ -12,7 +12,7 @@ export const FlowStep: React.FC = () => {
     flows, setFlows, selectedScenarioId, selectedFlowId, selectFlow,
     htmlCandidates, setHtmlCandidates, steps, setSteps,
     refreshFlowsForScenario, refreshStepsForFlow,
-    companies, selectedCompanyId, scenarios, selectedScenarioId: scenId,
+    companies, selectedCompanyId, scenarios,
     flowStepCountMap
   } = useWizardState();
 
@@ -50,7 +50,7 @@ export const FlowStep: React.FC = () => {
         setFlowForm(f => ({ ...f, orderNo: sorted.length + 1 }));
       }).catch(console.error);
     }
-  }, [selectedScenarioId]);
+  }, [selectedScenarioId, setFlows]);
 
   useEffect(() => {
     if (selectedFlowId) {
@@ -62,15 +62,22 @@ export const FlowStep: React.FC = () => {
       api.listStepsByFlow(selectedFlowId).then(res => {
         setSteps(res.sort((a, b) => a.orderNo - b.orderNo));
       }).catch(console.error);
-      // Load HTML snippet if exists
+    }
+  }, [selectedFlowId, setHtmlCandidates, setSteps]);
+
+  // Separate effect to handle html snippet syncing when flows or selectedFlowId change
+  useEffect(() => {
+    if (selectedFlowId) {
       const flow = flows.find(f => f.id === selectedFlowId);
       if (flow?.htmlSnippet) {
         setHtmlSnippet(flow.htmlSnippet);
       } else {
         setHtmlSnippet('');
       }
+    } else {
+      setHtmlSnippet('');
     }
-  }, [selectedFlowId]);
+  }, [selectedFlowId, flows]);
 
   // Filter to only interactive candidates
   const interactiveCandidates = htmlCandidates.filter(c =>

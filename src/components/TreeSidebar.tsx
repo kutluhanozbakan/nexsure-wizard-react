@@ -49,18 +49,37 @@ export const TreeSidebar: React.FC = () => {
         <h3><i className="bi bi-diagram-3"></i> Proje Ağacı</h3>
         <button
           className="tree-add-btn"
-          onClick={() => setActiveView('home')}
-          title="Ana Sayfa"
+          onClick={() => setActiveView('company')}
+          title="Yeni Firma Ekle"
         >
-          <i className="bi bi-house"></i>
+          <i className="bi bi-plus-lg"></i>
         </button>
       </div>
 
       <div className="tree-content">
+        {/* Home Link */}
+        <div
+          className={`tree-node ${activeView === 'home' ? 'active' : ''}`}
+          onClick={() => setActiveView('home')}
+        >
+          <i className="bi bi-house tree-icon home-icon"></i>
+          <span className="tree-label">Ana Sayfa</span>
+        </div>
+
+        <div className="tree-divider"></div>
+
         {companies.length === 0 && (
           <div className="tree-empty">
             <i className="bi bi-building"></i>
-            <span>Henüz firma yok</span>
+            <div>
+              <span>Henüz bir firma yok.</span>
+              <button
+                className="tree-inline-link"
+                onClick={() => setActiveView('company')}
+              >
+                İlk firmanızı ekleyin
+              </button>
+            </div>
           </div>
         )}
 

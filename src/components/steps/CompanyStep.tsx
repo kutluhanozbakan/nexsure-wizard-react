@@ -3,7 +3,7 @@ import { useWizardState } from '../../WizardContext';
 import { api } from '../../api';
 
 export const CompanyStep: React.FC = () => {
-  const { companies, setCompanies, selectedCompanyId, selectCompany, loadCompanies } = useWizardState();
+  const { setCompanies, companies, selectCompany, loadCompanies, setActiveView } = useWizardState();
   const [loading, setLoading] = React.useState(false);
   const [form, setForm] = React.useState({ code: '', name: '', baseUrl: '' });
 
@@ -11,7 +11,7 @@ export const CompanyStep: React.FC = () => {
     if (companies.length === 0) {
       loadCompanies();
     }
-  }, []);
+  }, [companies.length, loadCompanies]);
 
   const createCompany = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -22,6 +22,7 @@ export const CompanyStep: React.FC = () => {
       const company = await api.createCompany(form);
       setCompanies([company, ...companies]);
       setForm({ code: '', name: '', baseUrl: '' });
+      // After creating, the context selectCompany will navigate to 'scenario' panel
       selectCompany(company.id);
     } catch (err) {
       console.error(err);
@@ -37,48 +38,15 @@ export const CompanyStep: React.FC = () => {
         <div className="panel-title-row">
           <i className="bi bi-building panel-title-icon"></i>
           <div>
-            <h3>Firma Yönetimi</h3>
-            <p className="muted">İşlem yapmak istediğiniz firmayı seçin veya yeni bir tane oluşturun.</p>
+            <h3>Yeni Firma Tanımla</h3>
+            <p className="muted">Sisteme yeni bir sigorta firması veya kurum ekleyin.</p>
           </div>
         </div>
       </div>
 
-      <div className="grid-two">
-        <div className="glass-card">
-          <h4><i className="bi bi-list-ul"></i> Kayıtlı Firmalar</h4>
-          <div className="card-list">
-            {companies.map(c => (
-              <div
-                key={c.id}
-                className={`select-card ${selectedCompanyId === c.id ? 'selected' : ''}`}
-                onClick={() => selectCompany(c.id)}
-              >
-                <div className="select-card-main">
-                  <div className="select-card-icon">
-                    <i className="bi bi-building"></i>
-                  </div>
-                  <div className="select-card-info">
-                    <strong>{c.name}</strong>
-                    <span className="code-tag">Kod: {c.code}</span>
-                  </div>
-                  {selectedCompanyId === c.id && (
-                    <i className="bi bi-check-circle-fill select-card-check"></i>
-                  )}
-                </div>
-                <div className="url-badge">{c.baseUrl || 'URL Belirtilmedi'}</div>
-              </div>
-            ))}
-            {companies.length === 0 && (
-              <div className="empty-state">
-                <i className="bi bi-building"></i>
-                <span>Henüz firma bulunmuyor.</span>
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div className="glass-card">
-          <h4><i className="bi bi-plus-circle"></i> Yeni Firma Tanımla</h4>
+      <div className="centered-form-container">
+        <div className="glass-card max-w-lg">
+          <h4><i className="bi bi-plus-circle"></i> Firma Bilgileri</h4>
           <form onSubmit={createCompany}>
             <div className="form-stack">
               <div className="form-group">
@@ -113,9 +81,18 @@ export const CompanyStep: React.FC = () => {
                   placeholder="https://example.com"
                 />
               </div>
-              <button className="btn-modern w-full" type="submit" disabled={loading}>
-                <i className="bi bi-building-add"></i> {loading ? 'Oluşturuluyor...' : 'Firmayı Kaydet'}
-              </button>
+              <div className="form-actions">
+                <button
+                  className="btn-outline-modern"
+                  type="button"
+                  onClick={() => setActiveView('home')}
+                >
+                  İptal
+                </button>
+                <button className="btn-modern flex-1" type="submit" disabled={loading}>
+                  <i className="bi bi-building-add"></i> {loading ? 'Oluşturuluyor...' : 'Firmayı Kaydet'}
+                </button>
+              </div>
             </div>
           </form>
         </div>
