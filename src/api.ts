@@ -1,7 +1,7 @@
 import axios from 'axios';
 import * as T from './types';
 
-const API_BASE = 'http://localhost:5177/api';
+const API_BASE = 'http://localhost:5177';
 
 export const api = {
     // Companies
