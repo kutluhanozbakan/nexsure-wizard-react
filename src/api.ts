@@ -17,6 +17,7 @@ export const api = {
     // Flows
     listFlowsByScenario: (scenarioId: string) => axios.get<T.FlowDefinition[]>(`${API_BASE}/flows/by-scenario/${scenarioId}`).then(res => res.data),
     createFlow: (data: T.FlowCreateRequest) => axios.post<T.FlowDefinition>(`${API_BASE}/flows`, data).then(res => res.data),
+    updateFlow: (id: string, data: T.FlowUpdateRequest) => axios.put<T.FlowDefinition>(`${API_BASE}/flows/${id}`, data).then(res => res.data),
     deleteFlow: (id: string) => axios.delete(`${API_BASE}/flows/${id}`),
 
     // Steps

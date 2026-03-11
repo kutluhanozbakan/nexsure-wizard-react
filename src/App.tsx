@@ -1,84 +1,50 @@
 import { WizardProvider, useWizardState } from './WizardContext';
-import { WizardStepper } from './components/WizardStepper';
+import { TreeSidebar } from './components/TreeSidebar';
 import { CompanyStep } from './components/steps/CompanyStep';
 import { ScenarioStep } from './components/steps/ScenarioStep';
 import { FlowStep } from './components/steps/FlowStep';
-import { HtmlAnalysisStep } from './components/steps/HtmlAnalysisStep';
 import { StepDefinitionStep } from './components/steps/StepDefinitionStep';
-import { FinalOutputStep } from './components/steps/FinalOutputStep';
 import { ExecutionStep } from './components/steps/ExecutionStep';
-import { SelectionContextBar } from './components/SelectionContextBar';
-
-const stepsTitles = [
-  "Firma",
-  "Senaryo",
-  "Akış",
-  "HTML Analiz",
-  "Adımlar",
-  "Çıktı",
-  "Çalıştır"
-];
+import { HomeView } from './components/steps/HomeView';
 
 const WizardContent = () => {
-  const { currentStep, setCurrentStep } = useWizardState();
+  const { activeView } = useWizardState();
 
-  const renderCurrentStep = () => {
-    switch (currentStep) {
-      case 0: return <CompanyStep />;
-      case 1: return <ScenarioStep />;
-      case 2: return <FlowStep />;
-      case 3: return <HtmlAnalysisStep />;
-      case 4: return <StepDefinitionStep />;
-      case 5: return <FinalOutputStep />;
-      case 6: return <ExecutionStep />;
-      default: return <CompanyStep />;
+  const renderContent = () => {
+    switch (activeView) {
+      case 'home': return <HomeView />;
+      case 'company': return <CompanyStep />;
+      case 'scenario': return <ScenarioStep />;
+      case 'flow': return <FlowStep />;
+      case 'steps': return <StepDefinitionStep />;
+      case 'execution': return <ExecutionStep />;
+      default: return <HomeView />;
     }
   };
 
   return (
-    <div className="wizard-modern-layout">
+    <div className="app-layout">
       {/* Header */}
-      <header className="wizard-header text-white">
+      <header className="app-header">
         <div className="brand">
           <div className="logo-box">
             <i className="bi bi-robot"></i>
           </div>
           <div>
-            <h1>Nexsure Oto Wizard</h1>
-            <div className="tagline">Next-Gen RPA Developer Client</div>
+            <h1>Nexsure Oto</h1>
+            <div className="tagline">Next-Gen RPA Automation Platform</div>
           </div>
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <div className="glass-main animate-fade-in">
-        <WizardStepper 
-          steps={stepsTitles} 
-          currentStep={currentStep} 
-          onStepClicked={setCurrentStep} 
-        />
-        <SelectionContextBar />
-        <main className="wizard-main">
-          {renderCurrentStep()}
+      {/* Main Layout */}
+      <div className="app-body">
+        <TreeSidebar />
+        <main className="app-main">
+          <div className="content-panel animate-fade-in" key={activeView}>
+            {renderContent()}
+          </div>
         </main>
-
-        <footer className="wizard-footer-modern">
-          <button 
-            className="btn-outline-modern" 
-            disabled={currentStep === 0} 
-            onClick={() => setCurrentStep(currentStep - 1)}
-          >
-            <i className="bi bi-arrow-left"></i> Geri
-          </button>
-          
-          <button 
-            className="btn-modern" 
-            disabled={currentStep === stepsTitles.length - 1} 
-            onClick={() => setCurrentStep(currentStep + 1)}
-          >
-            İleri <i className="bi bi-arrow-right"></i>
-          </button>
-        </footer>
       </div>
     </div>
   );
