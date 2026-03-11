@@ -38,6 +38,7 @@ export const api = {
     // Execution
     runScenario: (scenarioId: string, data: T.RunScenarioRequest) => axios.post<{ runId: string }>(`${API_BASE}/scenarios/${scenarioId}/run`, data).then(res => res.data.runId),
     getRunResult: (runId: string) => axios.get<T.RunResultResponse>(`${API_BASE}/runs/${runId}/result`).then(res => res.data),
+    getRunStatus: (runId: string) => axios.get<{ status: T.RunStatus }>(`${API_BASE}/runs/${runId}`).then(res => res.data),
     getFlowRuns: (runId: string) => axios.get<T.FlowRunResponse[]>(`${API_BASE}/runs/${runId}/flows`).then(res => res.data),
     getStepRuns: (flowRunId: string) => axios.get<T.StepRunResponse[]>(`${API_BASE}/flow-runs/${flowRunId}/steps`).then(res => res.data),
     getRepairSuggestions: (runId: string, stepRunId: string) => axios.post<T.RepairSuggestion[]>(`${API_BASE}/runs/${runId}/steps/${stepRunId}/repair-suggestions`).then(res => res.data),

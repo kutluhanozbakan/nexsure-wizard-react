@@ -124,6 +124,13 @@ export const ScenarioStep: React.FC = () => {
                     </span>
                   </div>
                   <div className="select-card-actions">
+                    <button 
+                      className="icon-btn primary" 
+                      onClick={(e) => { e.stopPropagation(); selectScenario(s.id, 'extraction'); }} 
+                      title="Sonuç Tanımla"
+                    >
+                      <i className="bi bi-box-arrow-in-right"></i>
+                    </button>
                     <button className="icon-btn edit" onClick={(e) => startEdit(e, s)} title="Düzenle">
                       <i className="bi bi-pencil-square"></i>
                     </button>

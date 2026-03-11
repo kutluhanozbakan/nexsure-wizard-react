@@ -343,6 +343,27 @@ a {
   border-color: rgba(255, 255, 255, 0.2);
 }
 
+.btn-mini-primary {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.7rem;
+  background: var(--primary-soft);
+  color: var(--primary);
+  border: 1px solid var(--primary);
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.btn-mini-primary:hover {
+  background: var(--primary);
+  color: white;
+}
+
+.ml-2 {
+  margin-left: 0.5rem;
+}
+
 /* Scrollable card lists */
 .card-list.scrollable {
   max-height: 400px;
@@ -1622,4 +1643,24 @@ a {
 
 .app-main::-webkit-scrollbar-thumb:hover {
   background: var(--glass-border-hover);
+}
+
+.empty-state-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  color: var(--text-muted);
+  gap: 1rem;
+  text-align: center;
+}
+
+.empty-state-panel i {
+  font-size: 3rem;
+  opacity: 0.3;
+}
+
+.empty-state-panel p {
+  font-size: 1.1rem;
 }

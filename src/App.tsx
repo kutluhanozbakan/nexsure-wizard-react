@@ -6,6 +6,7 @@ import { FlowStep } from './components/steps/FlowStep';
 
 import { ExecutionStep } from './components/steps/ExecutionStep';
 import { HomeView } from './components/steps/HomeView';
+import { ExtractionPanel } from './components/steps/ExtractionPanel';
 
 const WizardContent = () => {
   const { activeView, setActiveView } = useWizardState();
@@ -16,7 +17,7 @@ const WizardContent = () => {
       case 'company': return <CompanyStep />;
       case 'scenario': return <ScenarioStep />;
       case 'flow': return <FlowStep />;
-
+      case 'extraction': return <ExtractionPanel />;
       case 'execution': return <ExecutionStep />;
       default: return <HomeView />;
     }

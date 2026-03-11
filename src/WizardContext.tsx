@@ -42,12 +42,13 @@ interface WizardStateContextType {
 
   // Actions
   selectCompany: (id: string) => void;
-  selectScenario: (id: string) => void;
+  selectScenario: (id: string, view?: T.ViewType) => void;
   selectFlow: (id: string) => void;
   navigateToExecution: () => void;
   refreshFlowsForScenario: (scenarioId: string) => Promise<void>;
   refreshStepsForFlow: (flowId: string) => Promise<void>;
   loadCompanies: () => Promise<void>;
+  refreshExtraction: (scenarioId: string) => Promise<void>;
 
   // Expanded state
   expandedCompanies: Set<string>;
@@ -106,7 +107,7 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
-  const selectCompany = (id: string) => {
+  const selectCompany = useCallback((id: string) => {
     setSelectedCompanyId(id);
     setSelectedScenarioId(null);
     setSelectedFlowId(null);
@@ -115,15 +116,18 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
     setSteps([]);    // Clear stale steps
     setHtmlCandidates([]); // Clear stale candidates
     setActiveView('scenario'); // Navigate to scenarios panel for this company
-  };
 
-  const selectScenario = (id: string) => {
+    // Load scenarios for the company immediately
+    api.listScenariosByCompany(id).then(setScenarios).catch(console.error);
+  }, []);
+
+  const selectScenario = useCallback((id: string, targetView: T.ViewType = 'flow') => {
     setSelectedScenarioId(id);
     setSelectedFlowId(null);
     setFlows([]);    // Clear stale flows
     setSteps([]);    // Clear stale steps
     setHtmlCandidates([]); // Clear stale candidates
-    setActiveView('flow'); // Navigate to flows panel for this scenario
+    setActiveView(targetView);
 
     // Expand in tree & load flows
     setExpandedScenarios(prev => new Set(prev).add(id));
@@ -132,7 +136,10 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
       setFlows(sorted);
       setScenarioFlowsMap(prev => ({ ...prev, [id]: sorted }));
     }).catch(console.error);
-  };
+
+    // Load extraction
+    api.getExtraction(id).then(setExtraction).catch(() => setExtraction(null));
+  }, []);
 
   const selectFlow = useCallback((id: string) => {
     setSelectedFlowId(id);
@@ -175,6 +182,16 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
     }
   }, []);
 
+  const refreshExtraction = useCallback(async (scenarioId: string) => {
+    try {
+      const e = await api.getExtraction(scenarioId);
+      setExtraction(e);
+    } catch (err) {
+      console.error(err);
+      setExtraction(null);
+    }
+  }, []);
+
   return (
     <WizardContext.Provider value={{
       activeView, setActiveView,
@@ -186,7 +203,7 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
       extraction, setExtraction,
       scenarioFlowsMap, flowStepCountMap,
       selectCompany, selectScenario, selectFlow, navigateToExecution,
-      refreshFlowsForScenario, refreshStepsForFlow, loadCompanies,
+      refreshFlowsForScenario, refreshStepsForFlow, loadCompanies, refreshExtraction,
       expandedCompanies, toggleCompanyExpand,
       expandedScenarios, toggleScenarioExpand,
     }}>

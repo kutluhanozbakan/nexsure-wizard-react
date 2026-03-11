@@ -131,9 +131,22 @@ export const TreeSidebar: React.FC = () => {
                       </span>
                     </div>
 
-                    {/* Flows */}
+                    {/* Scenario Sub-items */}
                     {expandedScenarios.has(scenario.id) && (
                       <div className="tree-children">
+                        {/* New: Extraction Node */}
+                        <div
+                          className={`tree-node extraction-node ${activeView === 'extraction' && selectedScenarioId === scenario.id ? 'active' : ''}`}
+                          onClick={() => {
+                            selectScenario(scenario.id, 'extraction');
+                          }}
+                        >
+                          <i className="bi bi-arrow-return-right tree-connector"></i>
+                          <i className="bi bi-box-arrow-in-right tree-icon extraction-icon"></i>
+                          <span className="tree-label">Sonuç Çıkarma</span>
+                        </div>
+
+                        {/* Flows */}
                         {scenarioFlowsFor(scenario.id).map(flow => (
                           <div
                             key={flow.id}

@@ -14,7 +14,7 @@ interface FlowReadiness {
 
 export const ExecutionStep: React.FC = () => {
   const {
-    companies, selectedCompanyId, selectedScenarioId
+    companies, selectedCompanyId, selectedScenarioId, extraction, refreshExtraction, selectScenario
   } = useWizardState();
 
   const [execCompanyId, setExecCompanyId] = useState<string>(selectedCompanyId || '');
@@ -43,10 +43,11 @@ export const ExecutionStep: React.FC = () => {
   useEffect(() => {
     if (execScenarioId) {
       checkReadiness(execScenarioId);
+      refreshExtraction(execScenarioId);
     } else {
       setFlowReadiness([]);
     }
-  }, [execScenarioId]);
+  }, [execScenarioId, refreshExtraction]);
 
   const checkReadiness = async (scenarioId: string) => {
     setLoadingReadiness(true);
@@ -74,9 +75,11 @@ export const ExecutionStep: React.FC = () => {
   };
 
   const isReady = flowReadiness.length > 0 &&
-    flowReadiness.every(f => f.hasHtml && f.stepCount > 0);
+    flowReadiness.every(f => f.hasHtml && f.stepCount > 0) &&
+    !!extraction;
 
   const missingItems = flowReadiness.filter(f => !f.hasHtml || f.stepCount === 0);
+  const extractionMissing = !extraction;
 
   const runScenario = async () => {
     if (!execScenarioId || !isReady) return;
@@ -95,11 +98,17 @@ export const ExecutionStep: React.FC = () => {
       const poll = setInterval(async () => {
         try {
           const result = await api.getRunResult(runId);
-          if (result && result.resultJson) {
-            setRunResult(result.resultJson);
-            setRunStatus(T.RunStatus.Completed);
-            clearInterval(poll);
-            setIsExecuting(false);
+          // Check for status from the run result if possible, or just check completed/failed
+          if (result) {
+            if (result.resultJson) setRunResult(result.resultJson);
+            
+            // We need to check if the run itself is finished
+            const runInfo = await api.getRunStatus(runId);
+            if (runInfo.status === T.RunStatus.Completed || runInfo.status === T.RunStatus.Failed) {
+                setRunStatus(runInfo.status);
+                clearInterval(poll);
+                setIsExecuting(false);
+            }
           }
         } catch {
           // Still running
@@ -252,6 +261,28 @@ export const ExecutionStep: React.FC = () => {
                     </div>
                   </div>
                 ))}
+              </div>
+
+              <div className="readiness-list mt-2">
+                <div className={`readiness-item ${!extractionMissing ? 'ready' : 'not-ready'}`}>
+                  <div className="readiness-flow-info">
+                    <span className="readiness-order"><i className="bi bi-box-arrow-in-right"></i></span>
+                    <span className="readiness-name">Sonuç Çıkarma (Extraction)</span>
+                  </div>
+                  <div className="readiness-checks">
+                    <span className={`readiness-check ${!extractionMissing ? 'pass' : 'fail'}`}>
+                      <i className={`bi ${!extractionMissing ? 'bi-check-circle' : 'bi-x-circle'}`}></i> {extraction ? 'Tanımlı' : 'Tanımsız'}
+                    </span>
+                    {extractionMissing && (
+                      <button 
+                        className="btn-mini-primary ml-2" 
+                        onClick={() => selectScenario(execScenarioId, 'extraction')}
+                      >
+                        Tanımla
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             </>
           )}
