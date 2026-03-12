@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useWizardState } from '../WizardContext';
+import { api } from '../api';
 
 export const TreeSidebar: React.FC = () => {
   const {
@@ -11,15 +12,32 @@ export const TreeSidebar: React.FC = () => {
     scenarioFlowsMap, flowStepCountMap,
     activeView, setActiveView,
   } = useWizardState();
+  const [companyScenariosMap, setCompanyScenariosMap] = React.useState<Record<string, typeof scenarios>>({});
 
   useEffect(() => {
     loadCompanies();
   }, [loadCompanies]);
 
+  useEffect(() => {
+    if (!selectedCompanyId) return;
+
+    setCompanyScenariosMap(prev => ({
+      ...prev,
+      [selectedCompanyId]: scenarios,
+    }));
+  }, [selectedCompanyId, scenarios]);
+
   // Load scenarios when company is expanded
   const handleCompanyExpand = (companyId: string) => {
     toggleCompanyExpand(companyId);
     if (!expandedCompanies.has(companyId)) {
+      if (!companyScenariosMap[companyId]) {
+        api.listScenariosByCompany(companyId)
+          .then(result => {
+            setCompanyScenariosMap(prev => ({ ...prev, [companyId]: result }));
+          })
+          .catch(console.error);
+      }
       selectCompany(companyId);
     }
   };
@@ -33,8 +51,7 @@ export const TreeSidebar: React.FC = () => {
   };
 
   const companyScenariosFor = (companyId: string) => {
-    if (selectedCompanyId === companyId) return scenarios;
-    return [];
+    return companyScenariosMap[companyId] || [];
   };
 
   const scenarioFlowsFor = (scenarioId: string) => {

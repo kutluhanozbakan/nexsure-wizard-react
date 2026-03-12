@@ -1,3 +1,4 @@
+import React from 'react';
 import { WizardProvider, useWizardState } from './WizardContext';
 import { TreeSidebar } from './components/TreeSidebar';
 import { CompanyStep } from './components/steps/CompanyStep';
@@ -8,8 +9,30 @@ import { ExecutionStep } from './components/steps/ExecutionStep';
 import { HomeView } from './components/steps/HomeView';
 import { ExtractionPanel } from './components/steps/ExtractionPanel';
 
+type ThemeMode = 'dark' | 'light';
+const themeStorageKey = 'nexsure-theme';
+
+const getInitialTheme = (): ThemeMode => {
+  if (typeof window === 'undefined') {
+    return 'dark';
+  }
+
+  const savedTheme = window.localStorage.getItem(themeStorageKey);
+  if (savedTheme === 'light' || savedTheme === 'dark') {
+    return savedTheme;
+  }
+
+  return window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+};
+
 const WizardContent = () => {
   const { activeView, setActiveView } = useWizardState();
+  const [theme, setTheme] = React.useState<ThemeMode>(getInitialTheme);
+
+  React.useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem(themeStorageKey, theme);
+  }, [theme]);
 
   const renderContent = () => {
     switch (activeView) {
@@ -36,6 +59,15 @@ const WizardContent = () => {
             <div className="tagline">Next-Gen RPA Automation Platform</div>
           </div>
         </div>
+        <button
+          type="button"
+          className="theme-toggle"
+          onClick={() => setTheme(current => current === 'dark' ? 'light' : 'dark')}
+          title={theme === 'dark' ? 'Açık moda geç' : 'Koyu moda geç'}
+        >
+          <i className={`bi ${theme === 'dark' ? 'bi-sun-fill' : 'bi-moon-stars-fill'}`}></i>
+          <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>
+        </button>
       </header>
 
       {/* Main Layout */}
