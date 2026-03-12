@@ -1,5 +1,5 @@
 // ───── View Types ─────
-export type ViewType = 'home' | 'company' | 'scenario' | 'flow' | 'steps' | 'execution' | 'extraction';
+export type ViewType = 'home' | 'company' | 'scenario' | 'flow' | 'steps' | 'execution' | 'extraction' | 'map';
 
 // ───── Domain Models ─────
 export interface Company {

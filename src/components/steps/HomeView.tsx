@@ -28,6 +28,12 @@ export const HomeView: React.FC = () => {
             <span className="stat-label">Firma</span>
           </div>
         </div>
+        <div className="stat-card glass-card" onClick={() => setActiveView('map')}>
+          <div className="stat-icon"><i className="bi bi-signpost-split"></i></div>
+          <div className="stat-info">
+            <span className="stat-label">Haritayi Ac</span>
+          </div>
+        </div>
         <div className="stat-card glass-card" onClick={() => setActiveView('execution')}>
           <div className="stat-icon execution-icon"><i className="bi bi-play-circle"></i></div>
           <div className="stat-info">

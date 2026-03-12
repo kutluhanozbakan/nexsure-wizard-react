@@ -83,6 +83,14 @@ export const TreeSidebar: React.FC = () => {
           <span className="tree-label">Ana Sayfa</span>
         </div>
 
+        <div
+          className={`tree-node ${activeView === 'map' ? 'active' : ''}`}
+          onClick={() => setActiveView('map')}
+        >
+          <i className="bi bi-signpost-split tree-icon map-icon"></i>
+          <span className="tree-label">Senaryo Haritasi</span>
+        </div>
+
         <div className="tree-divider"></div>
 
         {companies.length === 0 && (
