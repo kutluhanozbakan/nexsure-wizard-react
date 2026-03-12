@@ -24,6 +24,10 @@ export const FlowStep: React.FC = () => {
   // HTML Analysis
   const [htmlSnippet, setHtmlSnippet] = useState('');
   const [analyzing, setAnalyzing] = useState(false);
+  const [runtimeUrl, setRuntimeUrl] = useState('');
+  const [showRuntimeBrowser, setShowRuntimeBrowser] = useState(false);
+  const [expandInteractiveElements, setExpandInteractiveElements] = useState(true);
+  const [analyzedPageUrl, setAnalyzedPageUrl] = useState('');
 
   // Step Form
   const [stepForm, setStepForm] = useState({
@@ -76,8 +80,11 @@ export const FlowStep: React.FC = () => {
       } else {
         setHtmlSnippet('');
       }
+      setRuntimeUrl(flow?.startUrl || '');
     } else {
       setHtmlSnippet('');
+      setRuntimeUrl('');
+      setAnalyzedPageUrl('');
     }
   }, [selectedFlowId, flows]);
 
@@ -175,6 +182,7 @@ export const FlowStep: React.FC = () => {
     try {
       const candidates = await api.analyzeHtml(selectedFlowId, { htmlSnippet });
       setHtmlCandidates(candidates.sort((a, b) => a.candidateOrder - b.candidateOrder));
+      setAnalyzedPageUrl('');
       // Try to save the HTML snippet to the flow
       try {
         await api.updateFlow(selectedFlowId, { htmlSnippet });
@@ -185,6 +193,53 @@ export const FlowStep: React.FC = () => {
     } catch (err) {
       console.error(err);
       alert('Analiz sırasında hata oluştu.');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const handleRuntimeAnalysisResult = async (result: T.HtmlAnalysisCaptureResponse) => {
+    setHtmlSnippet(result.htmlSnippet);
+    setAnalyzedPageUrl(result.pageUrl);
+    setHtmlCandidates(result.candidates.sort((a, b) => a.candidateOrder - b.candidateOrder));
+
+    if (selectedScenarioId) {
+      await refreshFlowsForScenario(selectedScenarioId);
+    }
+  };
+
+  const analyzeCurrentFlowContext = async () => {
+    if (!selectedFlowId) return;
+
+    setAnalyzing(true);
+    try {
+      const result = await api.analyzeHtmlFromContext(selectedFlowId, {
+        expandInteractiveElements,
+        showBrowser: showRuntimeBrowser,
+      });
+      await handleRuntimeAnalysisResult(result);
+    } catch (err) {
+      console.error(err);
+      alert('Canlı sayfa analizi sırasında hata oluştu.');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const analyzeRuntimeUrl = async () => {
+    if (!selectedFlowId || !runtimeUrl.trim()) return;
+
+    setAnalyzing(true);
+    try {
+      const result = await api.analyzeHtmlByUrl(selectedFlowId, {
+        url: runtimeUrl.trim(),
+        expandInteractiveElements,
+        showBrowser: showRuntimeBrowser,
+      });
+      await handleRuntimeAnalysisResult(result);
+    } catch (err) {
+      console.error(err);
+      alert('URL üzerinden analiz sırasında hata oluştu.');
     } finally {
       setAnalyzing(false);
     }
@@ -453,7 +508,72 @@ export const FlowStep: React.FC = () => {
         <div className="animate-fade-in">
           <div className="glass-card">
             <h4><i className="bi bi-code-slash"></i> HTML Sayfası — {selectedFlow?.name}</h4>
-            <p className="muted small">Otomasyonun etkileşime gireceği sayfanın HTML'ini yapıştırın ve analiz edin.</p>
+            <p className="muted small">HTML içeriği Playwright DOM analizi ile taranır; görünür ve etkileşimli öğeler aday olarak çıkarılır.</p>
+            <div className="glass-card mt-4">
+              <h5><i className="bi bi-lightning-charge"></i> Playwright Canlı Analiz</h5>
+              <div className="form-stack">
+                <div className="form-group">
+                  <label>URL ile analiz et</label>
+                  <input
+                    type="text"
+                    value={runtimeUrl}
+                    onChange={e => setRuntimeUrl(e.target.value)}
+                    className="modern-input"
+                    placeholder="https://ornek-site/sayfa"
+                  />
+                  <p className="field-hint">İlk akışlarda doğrudan URL verilebilir. Sonraki akışlarda akış bağlamı analizi daha doğru sonuç verir.</p>
+                </div>
+
+                <div className="form-group checkbox-group-modern">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={expandInteractiveElements}
+                      onChange={e => setExpandInteractiveElements(e.target.checked)}
+                    />
+                    <span className="checkbox-custom"></span>
+                    <div>
+                      <strong>Dropdown ve gizli alanları açmayı dene</strong>
+                      <p className="muted">Combobox, summary ve `aria-expanded` tetikleyicileri best-effort olarak açılır.</p>
+                    </div>
+                  </label>
+                </div>
+
+                <div className="form-group checkbox-group-modern">
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={showRuntimeBrowser}
+                      onChange={e => setShowRuntimeBrowser(e.target.checked)}
+                    />
+                    <span className="checkbox-custom"></span>
+                    <div>
+                      <strong>Tarayıcıyı göster</strong>
+                      <p className="muted">Analiz sırasında canlı tarayıcıyı açar.</p>
+                    </div>
+                  </label>
+                </div>
+
+                <div className="form-actions">
+                  <button className="btn-outline-modern" type="button" onClick={analyzeRuntimeUrl} disabled={analyzing || !runtimeUrl.trim()}>
+                    <i className="bi bi-globe2"></i> URL'den Analiz Et
+                  </button>
+                  <button className="btn-modern" type="button" onClick={analyzeCurrentFlowContext} disabled={analyzing}>
+                    <i className="bi bi-diagram-3"></i> Bu Akışın Sayfasını Getir
+                  </button>
+                </div>
+
+                {analyzedPageUrl && (
+                  <div className="info-box-modern">
+                    <i className="bi bi-link-45deg"></i>
+                    <div>
+                      <h4>Analiz Edilen Sayfa</h4>
+                      <p>{analyzedPageUrl}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
             <form onSubmit={performAnalysis}>
               <div className="form-stack">
                 <div className="form-group">
@@ -470,7 +590,7 @@ export const FlowStep: React.FC = () => {
                   </div>
                 </div>
                 <button className="btn-modern" type="submit" disabled={analyzing || !selectedFlowId}>
-                  <i className="bi bi-magic"></i> {analyzing ? 'Analiz Ediliyor...' : 'Analiz Et & Kaydet'}
+                  <i className="bi bi-magic"></i> {analyzing ? 'Analiz Ediliyor...' : 'Playwright ile Analiz Et & Kaydet'}
                 </button>
               </div>
             </form>

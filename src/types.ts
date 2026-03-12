@@ -59,12 +59,54 @@ export interface HtmlCandidate {
 
 export interface ExtractionDefinition {
     id: string;
+    scenarioId?: string;
     flowDefinitionId: string;
     name: string;
+    selectorType?: SelectorType;
+    selectorValue?: string;
+    extractionType?: ExtractionType;
+    attributeName?: string;
+    returnMany: boolean;
+    sourceMode: ExtractionSourceMode;
+    captureUrl?: string;
+    fields: ExtractionFieldMapping[];
+}
+
+export interface ExtractionFieldMapping {
+    id: string;
+    name: string;
+    label: string;
+    tagName?: string;
     selectorType: SelectorType;
     selectorValue: string;
-    extractionType: ExtractionType;
+    valueSourceType: ExtractionValueSourceType;
+    attributeName?: string;
     returnMany: boolean;
+}
+
+export interface ExtractionCandidate {
+    id: string;
+    label: string;
+    previewValue?: string;
+    tagName?: string;
+    selectorType: SelectorType;
+    selectorValue: string;
+    valueSourceType: ExtractionValueSourceType;
+    attributeName?: string;
+    returnMany: boolean;
+}
+
+export interface ExtractionPreviewRequest {
+    flowDefinitionId: string;
+    sourceMode: ExtractionSourceMode;
+    captureUrl?: string;
+    expandInteractiveElements: boolean;
+    showBrowser: boolean;
+}
+
+export interface ExtractionPreviewResponse {
+    pageUrl: string;
+    candidates: ExtractionCandidate[];
 }
 
 // ───── Run Models ─────
@@ -171,6 +213,15 @@ export enum ExtractionType {
     AttributeValue = 3
 }
 
+export type ExtractionSourceMode = 'CurrentContext' | 'NavigateToUrl';
+export type ExtractionValueSourceType =
+    | 'Text'
+    | 'InputValue'
+    | 'SelectedOptionText'
+    | 'SelectedOptionValue'
+    | 'AttributeValue'
+    | 'ListText';
+
 export enum RunStatus {
     Pending = 0,
     Running = 1,
@@ -222,6 +273,23 @@ export interface AnalyzeHtmlRequest {
     htmlSnippet: string;
 }
 
+export interface AnalyzeUrlRequest {
+    url: string;
+    expandInteractiveElements: boolean;
+    showBrowser: boolean;
+}
+
+export interface AnalyzeFlowContextRequest {
+    expandInteractiveElements: boolean;
+    showBrowser: boolean;
+}
+
+export interface HtmlAnalysisCaptureResponse {
+    pageUrl: string;
+    htmlSnippet: string;
+    candidates: HtmlCandidate[];
+}
+
 export interface StepCreateRequest {
     flowDefinitionId: string;
     name: string;
@@ -248,10 +316,14 @@ export interface StepUpdateRequest {
 export interface ExtractionUpsertRequest {
     flowDefinitionId: string;
     name: string;
-    selectorType: SelectorType;
-    selectorValue: string;
-    extractionType: ExtractionType;
+    selectorType?: SelectorType;
+    selectorValue?: string;
+    extractionType?: ExtractionType;
+    attributeName?: string;
     returnMany: boolean;
+    sourceMode: ExtractionSourceMode;
+    captureUrl?: string;
+    fields: ExtractionFieldMapping[];
 }
 
 export interface RunScenarioRequest {

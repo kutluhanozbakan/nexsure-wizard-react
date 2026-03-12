@@ -30,10 +30,13 @@ export const api = {
     analyzeHtml: (flowId: string, data: T.AnalyzeHtmlRequest) => axios.post<T.HtmlCandidate[]>(`${API_BASE}/flows/${flowId}/html-analysis`, data).then(res => res.data),
     listHtmlCandidatesByFlow: (flowId: string) => axios.get<T.HtmlCandidate[]>(`${API_BASE}/flows/${flowId}/html-analysis`).then(res => res.data),
     previewHtml: (data: T.AnalyzeHtmlRequest) => axios.post<T.HtmlCandidate[]>(`${API_BASE}/html-analysis/preview`, data).then(res => res.data),
+    analyzeHtmlByUrl: (flowId: string, data: T.AnalyzeUrlRequest) => axios.post<T.HtmlAnalysisCaptureResponse>(`${API_BASE}/flows/${flowId}/html-analysis/runtime-url`, data).then(res => res.data),
+    analyzeHtmlFromContext: (flowId: string, data: T.AnalyzeFlowContextRequest) => axios.post<T.HtmlAnalysisCaptureResponse>(`${API_BASE}/flows/${flowId}/html-analysis/runtime-context`, data).then(res => res.data),
 
     // Extractions
     getExtraction: (scenarioId: string) => axios.get<T.ExtractionDefinition>(`${API_BASE}/scenarios/${scenarioId}/extraction`).then(res => res.data).catch(() => null),
     upsertExtraction: (scenarioId: string, data: T.ExtractionUpsertRequest) => axios.put<T.ExtractionDefinition>(`${API_BASE}/scenarios/${scenarioId}/extraction`, data).then(res => res.data),
+    previewExtractionCandidates: (scenarioId: string, data: T.ExtractionPreviewRequest) => axios.post<T.ExtractionPreviewResponse>(`${API_BASE}/scenarios/${scenarioId}/extraction/preview-candidates`, data).then(res => res.data),
 
     // Execution
     runScenario: (scenarioId: string, data: T.RunScenarioRequest) => axios.post<{ scenarioRunId: string }>(`${API_BASE}/scenarios/${scenarioId}/run`, data).then(res => res.data.scenarioRunId),
