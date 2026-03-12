@@ -94,24 +94,30 @@ export const ExecutionStep: React.FC = () => {
       setActiveRunId(runId);
       setRunStatus(T.RunStatus.Running);
 
-      // Poll for result
+      // Poll for status
       const poll = setInterval(async () => {
         try {
-          const result = await api.getRunResult(runId);
-          // Check for status from the run result if possible, or just check completed/failed
-          if (result) {
-            if (result.resultJson) setRunResult(result.resultJson);
+          // First check the overall run status
+          const runInfo = await api.getRunStatus(runId);
+          setRunStatus(runInfo.status);
+          
+          if (runInfo.status === T.RunStatus.Completed || runInfo.status === T.RunStatus.Failed) {
+            clearInterval(poll);
+            setIsExecuting(false);
             
-            // We need to check if the run itself is finished
-            const runInfo = await api.getRunStatus(runId);
-            if (runInfo.status === T.RunStatus.Completed || runInfo.status === T.RunStatus.Failed) {
-                setRunStatus(runInfo.status);
-                clearInterval(poll);
-                setIsExecuting(false);
+            // If it finished, try to fetch the result JSON (it might be missing if it failed)
+            try {
+              const result = await api.getRunResult(runId);
+              if (result && result.resultJson) {
+                setRunResult(result.resultJson);
+              }
+            } catch (err) {
+              console.warn("Sonuç getirilemedi:", err);
             }
           }
-        } catch {
-          // Still running
+        } catch (err) {
+          console.error("Durum kontrolü hatası:", err);
+          // Don't stop polling on a single network error, but log it
         }
       }, 3000);
 
@@ -289,20 +295,44 @@ export const ExecutionStep: React.FC = () => {
         </div>
       </div>
 
-      {/* Run Result */}
-      {runResult && (
+      {/* Run Status & Result */}
+      {activeRunId && (
         <div className="glass-card mt-4">
-          <h4><i className="bi bi-terminal"></i> Çalıştırma Sonucu</h4>
-          <pre className="result-pre">{runResult}</pre>
-        </div>
-      )}
+          <h4><i className="bi bi-info-circle"></i> Çalıştırma Durumu</h4>
+          
+          {runStatus === T.RunStatus.Running && (
+            <div className="running-indicator mt-4">
+              <div className="pulse-dot"></div>
+              <span>Senaryo çalışıyor... (Run ID: {activeRunId})</span>
+            </div>
+          )}
 
-      {activeRunId && runStatus === T.RunStatus.Running && (
-        <div className="glass-card mt-4">
-          <div className="running-indicator">
-            <div className="pulse-dot"></div>
-            <span>Senaryo çalışıyor... (Run ID: {activeRunId})</span>
-          </div>
+          {runStatus === T.RunStatus.Completed && (
+            <div className="readiness-alert success mt-4">
+              <i className="bi bi-check-circle-fill"></i>
+              <span>Senaryo başarıyla tamamlandı.</span>
+            </div>
+          )}
+
+          {runStatus === T.RunStatus.Failed && (
+            <div className="readiness-alert warning mt-4">
+              <i className="bi bi-x-circle-fill"></i>
+              <span>Senaryo çalıştırılırken bir hata oluştu veya başarısız oldu.</span>
+            </div>
+          )}
+
+          {runResult && (
+            <div className="mt-4">
+              <h5 className="mb-2"><i className="bi bi-terminal"></i> Çıkarılan Sonuç (JSON)</h5>
+              <pre className="result-pre">{runResult}</pre>
+            </div>
+          )}
+          
+          {!runResult && runStatus === T.RunStatus.Completed && (
+            <div className="mt-4 text-muted small">
+              <i className="bi bi-info-circle"></i> Sonuç çıkarılamadı veya boş döndü. Extraction (Sonuç Çıkarma) ayarlarınızı kontrol edin.
+            </div>
+          )}
         </div>
       )}
     </div>
