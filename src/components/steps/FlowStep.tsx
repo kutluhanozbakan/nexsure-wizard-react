@@ -18,6 +18,7 @@ export const FlowStep: React.FC = () => {
 
   const [activeTab, setActiveTab] = useState<'flows' | 'html' | 'steps'>('flows');
   const [loading, setLoading] = useState(false);
+  const [editingFlowId, setEditingFlowId] = useState<string | null>(null);
   const [flowForm, setFlowForm] = useState({ name: '', orderNo: 1, startUrl: '', usePreviousFlowContext: false, timeoutMs: 30000 });
 
   // HTML Analysis
@@ -33,7 +34,8 @@ export const FlowStep: React.FC = () => {
     selectorType: T.SelectorType.Css,
     selectorValue: '',
     timeoutMs: 30000,
-    retryCount: 0
+    retryCount: 0,
+    orderNo: 1,
   });
   const [stepProcessing, setStepProcessing] = useState(false);
   const [editingStepId, setEditingStepId] = useState<string | null>(null);
@@ -103,27 +105,54 @@ export const FlowStep: React.FC = () => {
 
     setLoading(true);
     try {
-      const flow = await api.createFlow({
-        ...flowForm,
-        scenarioId: selectedScenarioId,
-        startUrl: flowForm.startUrl || undefined
-      });
-      const updatedFlows = [...flows, flow].sort((a, b) => a.orderNo - b.orderNo);
-      setFlows(updatedFlows);
-      setFlowForm({ name: '', orderNo: updatedFlows.length + 1, startUrl: '', usePreviousFlowContext: false, timeoutMs: 30000 });
-      selectFlow(flow.id);
-      refreshFlowsForScenario(selectedScenarioId);
+      if (editingFlowId) {
+        const updated = await api.updateFlow(editingFlowId, {
+          ...flowForm,
+          startUrl: flowForm.startUrl || undefined
+        });
+        setFlows(flows.map(f => f.id === editingFlowId ? updated : f).sort((a, b) => a.orderNo - b.orderNo));
+        setEditingFlowId(null);
+        if (selectedScenarioId) refreshFlowsForScenario(selectedScenarioId);
+      } else {
+        const flow = await api.createFlow({
+          ...flowForm,
+          scenarioId: selectedScenarioId,
+          startUrl: flowForm.startUrl || undefined
+        });
+        const updatedFlows = [...flows, flow].sort((a, b) => a.orderNo - b.orderNo);
+        setFlows(updatedFlows);
+        selectFlow(flow.id);
+        refreshFlowsForScenario(selectedScenarioId);
+      }
+      setFlowForm({ name: '', orderNo: flows.length + (editingFlowId ? 1 : 2), startUrl: '', usePreviousFlowContext: false, timeoutMs: 30000 });
     } catch (err) {
       console.error(err);
-      alert('Akış oluşturulurken hata oluştu.');
+      alert('Akış işlemi sırasında hata oluştu.');
     } finally {
       setLoading(false);
     }
   };
 
+  const startEditFlow = (e: React.MouseEvent, flow: T.FlowDefinition) => {
+    e.stopPropagation();
+    setEditingFlowId(flow.id);
+    setFlowForm({
+      name: flow.name,
+      orderNo: flow.orderNo,
+      startUrl: flow.startUrl || '',
+      usePreviousFlowContext: flow.usePreviousFlowContext,
+      timeoutMs: flow.timeoutMs
+    });
+  };
+
+  const cancelEditFlow = () => {
+    setEditingFlowId(null);
+    setFlowForm({ name: '', orderNo: flows.length + 1, startUrl: '', usePreviousFlowContext: false, timeoutMs: 30000 });
+  };
+
   const deleteFlow = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
-    if (!window.confirm('Bu akışı silmek istediğinize emin misiniz?')) return;
+    if (!window.confirm('Bu akışı ve içindeki TÜM adımları silmek istediğinize emin misiniz?')) return;
     try {
       await api.deleteFlow(id);
       setFlows(flows.filter(f => f.id !== id));
@@ -194,6 +223,7 @@ export const FlowStep: React.FC = () => {
             ? stepForm.inputText : undefined,
           timeoutMs: stepForm.timeoutMs,
           retryCount: stepForm.retryCount,
+          orderNo: stepForm.orderNo,
         });
         await refreshStepsForFlow(selectedFlowId);
         setEditingStepId(null);
@@ -212,7 +242,7 @@ export const FlowStep: React.FC = () => {
         });
         setSteps([...steps, step]);
       }
-      setStepForm({ stepName: '', action: T.ActionType.Click, selectedCandidateId: '', inputText: '', selectorType: T.SelectorType.Css, selectorValue: '', timeoutMs: 30000, retryCount: 0 });
+      setStepForm({ stepName: '', action: T.ActionType.Click, selectedCandidateId: '', inputText: '', selectorType: T.SelectorType.Css, selectorValue: '', timeoutMs: 30000, retryCount: 0, orderNo: steps.length + 1 });
     } catch (err) {
       console.error(err);
       alert('Adım işlemi sırasında hata oluştu.');
@@ -232,22 +262,26 @@ export const FlowStep: React.FC = () => {
       selectorValue: step.selectorValue,
       timeoutMs: step.timeoutMs,
       retryCount: step.retryCount,
+      orderNo: step.orderNo,
     });
     setActiveTab('steps');
   };
 
-  const deleteStep = async (id: string) => {
+  const deleteStep = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (!window.confirm('Bu adımı silmek istediğinize emin misiniz?')) return;
     try {
       await api.deleteStep(id);
       setSteps(steps.filter(s => s.id !== id));
     } catch (err) {
       console.error(err);
+      alert('Adım silinirken hata oluştu.');
     }
   };
 
   const cancelEditStep = () => {
     setEditingStepId(null);
-    setStepForm({ stepName: '', action: T.ActionType.Click, selectedCandidateId: '', inputText: '', selectorType: T.SelectorType.Css, selectorValue: '', timeoutMs: 30000, retryCount: 0 });
+    setStepForm({ stepName: '', action: T.ActionType.Click, selectedCandidateId: '', inputText: '', selectorType: T.SelectorType.Css, selectorValue: '', timeoutMs: 30000, retryCount: 0, orderNo: 1 });
   };
 
   return (
@@ -329,9 +363,17 @@ export const FlowStep: React.FC = () => {
                         <span className="mini-badge info">{flowStepCountMap[f.id]} adım</span>
                       )}
                     </div>
-                    <button className="icon-btn danger" onClick={(e) => deleteFlow(e, f.id)} title="Sil">
-                      <i className="bi bi-trash"></i>
-                    </button>
+                    <div className="select-card-actions">
+                      <button className="icon-btn edit" onClick={(e) => startEditFlow(e, f)} title="Düzenle">
+                        <i className="bi bi-pencil-square"></i>
+                      </button>
+                      <button className="icon-btn danger" onClick={(e) => deleteFlow(e, f.id)} title="Sil">
+                        <i className="bi bi-trash"></i>
+                      </button>
+                      {selectedFlowId === f.id && (
+                        <i className="bi bi-check-circle-fill select-card-check"></i>
+                      )}
+                    </div>
                   </div>
                 </div>
               ))}
@@ -345,7 +387,7 @@ export const FlowStep: React.FC = () => {
           </div>
 
           <div className="glass-card sticky-form">
-            <h4><i className="bi bi-plus-circle"></i> Yeni Akış Ekle</h4>
+            <h4><i className={`bi ${editingFlowId ? 'bi-pencil' : 'bi-plus-circle'}`}></i> {editingFlowId ? 'Akışı Düzenle' : 'Yeni Akış Ekle'}</h4>
             <form onSubmit={createFlow}>
               <div className="form-stack">
                 <div className="form-group">
@@ -364,8 +406,9 @@ export const FlowStep: React.FC = () => {
                   <input
                     type="number"
                     value={flowForm.orderNo}
-                    onChange={e => setFlowForm({ ...flowForm, orderNo: parseInt(e.target.value) })}
+                    onChange={e => setFlowForm({ ...flowForm, orderNo: parseInt(e.target.value) || 1 })}
                     className="modern-input"
+                    min="1"
                     required
                   />
                 </div>
@@ -389,9 +432,17 @@ export const FlowStep: React.FC = () => {
                     Önceki akış bağlamını kullan
                   </label>
                 </div>
-                <button className="btn-modern w-full" type="submit" disabled={loading}>
-                  <i className="bi bi-node-plus"></i> {loading ? 'Ekleniyor...' : 'Akış Ekle'}
-                </button>
+                <div className="form-actions">
+                  {editingFlowId && (
+                    <button className="btn-outline-modern" type="button" onClick={cancelEditFlow}>
+                      İptal
+                    </button>
+                  )}
+                  <button className={`btn-modern ${editingFlowId ? '' : 'w-full'}`} type="submit" disabled={loading}>
+                    <i className={`bi ${editingFlowId ? 'bi-check-lg' : 'bi-plus-lg'}`}></i>
+                    {loading ? 'İşleniyor...' : (editingFlowId ? 'Güncelle' : 'Akış Ekle')}
+                  </button>
+                </div>
               </div>
             </form>
           </div>
@@ -469,6 +520,18 @@ export const FlowStep: React.FC = () => {
                   onChange={e => setStepForm({ ...stepForm, stepName: e.target.value })}
                   className="modern-input"
                   placeholder="Örn: Kullanıcı Adı Yaz"
+                />
+              </div>
+
+              <div className="form-group">
+                <label>Sıra No</label>
+                <input
+                  type="number"
+                  value={stepForm.orderNo}
+                  onChange={e => setStepForm({ ...stepForm, orderNo: parseInt(e.target.value) || 1 })}
+                  className="modern-input"
+                  min="1"
+                  required
                 />
               </div>
 
@@ -585,7 +648,7 @@ export const FlowStep: React.FC = () => {
                       <button className="icon-btn edit" onClick={() => startEditStep(step)} title="Düzenle">
                         <i className="bi bi-pencil-square"></i>
                       </button>
-                      <button className="icon-btn danger" onClick={() => deleteStep(step.id)} title="Sil">
+                      <button className="icon-btn danger" onClick={(e) => deleteStep(e, step.id)} title="Sil">
                         <i className="bi bi-trash"></i>
                       </button>
                     </div>
