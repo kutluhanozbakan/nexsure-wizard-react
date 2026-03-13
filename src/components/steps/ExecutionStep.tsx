@@ -129,7 +129,7 @@ export const ExecutionStep: React.FC = () => {
         showBrowser,
       });
       setActiveRunId(runId);
-      setRunStatus(T.RunStatus.Running);
+      setRunStatus(T.RunStatus.Queued);
 
       // Poll for status
       const poll = setInterval(async () => {
@@ -337,10 +337,10 @@ export const ExecutionStep: React.FC = () => {
         <div className="glass-card mt-4">
           <h4><i className="bi bi-info-circle"></i> Çalıştırma Durumu</h4>
           
-          {runStatus === T.RunStatus.Running && (
+          {(runStatus === T.RunStatus.Queued || runStatus === T.RunStatus.Running) && (
             <div className="running-indicator mt-4">
               <div className="pulse-dot"></div>
-              <span>Senaryo çalışıyor... (Run ID: {activeRunId})</span>
+              <span>{runStatus === T.RunStatus.Queued ? 'Senaryo kuyrukta bekliyor...' : 'Senaryo çalışıyor...'} (Run ID: {activeRunId})</span>
             </div>
           )}
 
