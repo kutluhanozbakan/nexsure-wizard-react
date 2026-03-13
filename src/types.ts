@@ -1,5 +1,5 @@
 // ───── View Types ─────
-export type ViewType = 'home' | 'company' | 'scenario' | 'flow' | 'steps' | 'execution' | 'extraction' | 'map';
+export type ViewType = 'home' | 'company' | 'scenario' | 'flow' | 'steps' | 'execution' | 'extraction' | 'map' | 'ops';
 
 // ───── Domain Models ─────
 export interface Company {
@@ -119,25 +119,53 @@ export interface ExtractionPreviewResponse {
 // ───── Run Models ─────
 export interface ScenarioRunResponse {
     id: string;
+    scenarioId: string;
+    companyId: string;
     status: RunStatus;
     startedAt?: string;
+    endedAt?: string;
+    finalUrl?: string;
+    resultJson?: string;
+    errorMessage?: string;
+    errorCode?: string;
+    errorCategory?: string;
+    failureFingerprint?: string;
+    firstFailedStepId?: string;
+    triggeredBy?: string;
 }
 
 export interface FlowRunResponse {
     id: string;
+    scenarioRunId: string;
+    flowDefinitionId: string;
     flowOrderNo: number;
     flowName: string;
     status: RunStatus;
+    startedAt?: string;
+    endedAt?: string;
+    currentUrl?: string;
+    errorMessage?: string;
 }
 
 export interface StepRunResponse {
     id: string;
+    flowRunId: string;
     stepDefinitionId: string;
+    stepOrderNo: number;
     stepName: string;
     status: RunStatus;
+    attemptCount?: number;
     selectorValueResolved?: string;
+    outputValue?: string;
     errorMessage?: string;
+    errorCode?: string;
+    errorCategory?: string;
+    failureFingerprint?: string;
+    pageUrl?: string;
+    screenshotPath?: string;
+    domSnapshotPath?: string;
     startedAt?: string;
+    endedAt?: string;
 }
 
 export interface RepairSuggestion {
@@ -147,8 +175,23 @@ export interface RepairSuggestion {
 }
 
 export interface RunResultResponse {
-    runId: string;
+    scenarioRunId: string;
     resultJson: string;
+}
+
+export interface ScenarioHealthSnapshotResponse {
+    scenarioId: string;
+    companyId: string;
+    scenarioName: string;
+    companyName: string;
+    status: ScenarioHealthStatus;
+    lastRunAt?: string;
+    lastSuccessfulRunAt?: string;
+    lastFailedRunAt?: string;
+    consecutiveFailureCount: number;
+    successCount24h: number;
+    failureCount24h: number;
+    lastFailureFingerprint?: string;
 }
 
 // ───── Enums (synced with backend) ─────
@@ -231,10 +274,18 @@ export type ExtractionValueSourceType =
 
 export enum RunStatus {
     Pending = 0,
-    Running = 1,
-    Completed = 2,
-    Failed = 3,
-    Skipped = 4
+    Queued = 1,
+    Running = 2,
+    Completed = 3,
+    Failed = 4,
+    Skipped = 5
+}
+
+export enum ScenarioHealthStatus {
+    Unknown = 0,
+    Healthy = 1,
+    Degraded = 2,
+    Outage = 3
 }
 
 // ───── Request DTOs ─────

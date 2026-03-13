@@ -22,6 +22,7 @@ const NAVIGABLE_VIEWS = new Set<T.ViewType>([
   'execution',
   'extraction',
   'map',
+  'ops',
 ]);
 
 const normalizeId = (value: string | null) => {

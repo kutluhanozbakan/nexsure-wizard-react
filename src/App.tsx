@@ -9,6 +9,7 @@ import { ExecutionStep } from './components/steps/ExecutionStep';
 import { HomeView } from './components/steps/HomeView';
 import { ExtractionPanel } from './components/steps/ExtractionPanel';
 import { ScenarioMapView } from './components/steps/ScenarioMapView';
+import { OpsCenterView } from './components/steps/OpsCenterView';
 
 type ThemeMode = 'dark' | 'light';
 const themeStorageKey = 'nexsure-theme';
@@ -44,6 +45,7 @@ const WizardContent = () => {
       case 'extraction': return <ExtractionPanel />;
       case 'execution': return <ExecutionStep />;
       case 'map': return <ScenarioMapView />;
+      case 'ops': return <OpsCenterView />;
       default: return <HomeView />;
     }
   };

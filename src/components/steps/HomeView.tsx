@@ -40,6 +40,12 @@ export const HomeView: React.FC = () => {
             <span className="stat-label">Çalıştır</span>
           </div>
         </div>
+        <div className="stat-card glass-card" onClick={() => setActiveView('ops')}>
+          <div className="stat-icon"><i className="bi bi-activity"></i></div>
+          <div className="stat-info">
+            <span className="stat-label">Operasyon Merkezi</span>
+          </div>
+        </div>
       </div>
 
       <div className="home-guide glass-card">
