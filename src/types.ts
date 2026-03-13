@@ -6,7 +6,14 @@ export interface Company {
     id: string;
     name: string;
     code: string;
-    baseUrl: string;
+    baseUrl?: string;
+    proxyHost?: string;
+    proxyPort?: number;
+    proxyUsername?: string;
+    extraConfigJson?: string;
+    isActive?: boolean;
+    createdAt?: string;
+    updatedAt?: string;
 }
 
 export interface Scenario {
@@ -234,7 +241,16 @@ export enum RunStatus {
 export interface CompanyCreateRequest {
     name: string;
     code: string;
-    baseUrl: string;
+    baseUrl?: string;
+    proxyHost?: string;
+    proxyPort?: number;
+    proxyUsername?: string;
+    proxyPassword?: string;
+    googleSecretKey?: string;
+}
+
+export interface CompanyUpdateRequest extends CompanyCreateRequest {
+    isActive?: boolean;
 }
 
 export interface ScenarioCreateRequest {
