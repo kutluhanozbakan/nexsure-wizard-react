@@ -14,7 +14,14 @@ interface FlowReadiness {
 
 export const ExecutionStep: React.FC = () => {
   const {
-    companies, selectedCompanyId, selectedScenarioId, extraction, refreshExtraction, selectScenario
+    companies,
+    selectedCompanyId,
+    setSelectedCompanyId,
+    selectedScenarioId,
+    setSelectedScenarioId,
+    extraction,
+    refreshExtraction,
+    selectScenario,
   } = useWizardState();
 
   const [execCompanyId, setExecCompanyId] = useState<string>(selectedCompanyId || '');
@@ -28,6 +35,32 @@ export const ExecutionStep: React.FC = () => {
   const [activeRunId, setActiveRunId] = useState<string | null>(null);
   const [runStatus, setRunStatus] = useState<T.RunStatus>(T.RunStatus.Pending);
 
+  useEffect(() => {
+    setExecCompanyId(selectedCompanyId || '');
+  }, [selectedCompanyId]);
+
+  useEffect(() => {
+    setExecScenarioId(selectedScenarioId || '');
+  }, [selectedScenarioId]);
+
+  useEffect(() => {
+    const nextCompanyId = execCompanyId || null;
+    if (nextCompanyId !== selectedCompanyId) {
+      setSelectedCompanyId(nextCompanyId);
+    }
+  }, [execCompanyId, selectedCompanyId, setSelectedCompanyId]);
+
+  useEffect(() => {
+    if ((selectedCompanyId || '') !== execCompanyId) {
+      return;
+    }
+
+    const nextScenarioId = execScenarioId || null;
+    if (nextScenarioId !== selectedScenarioId) {
+      setSelectedScenarioId(nextScenarioId);
+    }
+  }, [execCompanyId, execScenarioId, selectedCompanyId, selectedScenarioId, setSelectedScenarioId]);
+
   // Load scenarios when company changes
   useEffect(() => {
     if (execCompanyId) {
@@ -35,9 +68,13 @@ export const ExecutionStep: React.FC = () => {
     } else {
       setExecScenarios([]);
     }
-    setExecScenarioId('');
+
+    if (selectedCompanyId !== execCompanyId) {
+      setExecScenarioId('');
+    }
+
     setFlowReadiness([]);
-  }, [execCompanyId]);
+  }, [execCompanyId, selectedCompanyId]);
 
   // Load flow readiness when scenario changes
   useEffect(() => {
