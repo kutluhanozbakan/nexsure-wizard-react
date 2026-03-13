@@ -18,15 +18,6 @@ export const TreeSidebar: React.FC = () => {
     loadCompanies();
   }, [loadCompanies]);
 
-  useEffect(() => {
-    if (!selectedCompanyId) return;
-
-    setCompanyScenariosMap(prev => ({
-      ...prev,
-      [selectedCompanyId]: scenarios,
-    }));
-  }, [selectedCompanyId, scenarios]);
-
   // Load scenarios when company is expanded
   const handleCompanyExpand = (companyId: string) => {
     toggleCompanyExpand(companyId);
@@ -51,7 +42,15 @@ export const TreeSidebar: React.FC = () => {
   };
 
   const companyScenariosFor = (companyId: string) => {
-    return companyScenariosMap[companyId] || [];
+    if (companyScenariosMap[companyId]) {
+      return companyScenariosMap[companyId];
+    }
+
+    if (selectedCompanyId === companyId) {
+      return scenarios;
+    }
+
+    return [];
   };
 
   const scenarioFlowsFor = (scenarioId: string) => {

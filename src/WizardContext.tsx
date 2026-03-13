@@ -1,7 +1,14 @@
-import { createContext, useContext, useState, useCallback } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import * as T from './types';
 import { api } from './api';
+import {
+  buildNavigationSearch,
+  navigationStatesEqual,
+  parseNavigationState,
+  sanitizeNavigationState,
+  type WizardNavigationState,
+} from './navigationState';
 
 interface WizardStateContextType {
   // Navigation
@@ -60,16 +67,18 @@ interface WizardStateContextType {
 const WizardContext = createContext<WizardStateContextType | undefined>(undefined);
 
 export const WizardProvider = ({ children }: { children: ReactNode }) => {
+  const initialNavigation = parseNavigationState(window.location.search);
+
   // Navigation
-  const [activeView, setActiveView] = useState<T.ViewType>('home');
+  const [activeView, setActiveViewState] = useState<T.ViewType>(initialNavigation.activeView);
 
   // Data
   const [companies, setCompanies] = useState<T.Company[]>([]);
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const [selectedCompanyId, setSelectedCompanyIdState] = useState<string | null>(initialNavigation.selectedCompanyId);
   const [scenarios, setScenarios] = useState<T.Scenario[]>([]);
-  const [selectedScenarioId, setSelectedScenarioId] = useState<string | null>(null);
+  const [selectedScenarioId, setSelectedScenarioIdState] = useState<string | null>(initialNavigation.selectedScenarioId);
   const [flows, setFlows] = useState<T.FlowDefinition[]>([]);
-  const [selectedFlowId, setSelectedFlowId] = useState<string | null>(null);
+  const [selectedFlowId, setSelectedFlowIdState] = useState<string | null>(initialNavigation.selectedFlowId);
   const [htmlCandidates, setHtmlCandidates] = useState<T.HtmlCandidate[]>([]);
   const [steps, setSteps] = useState<T.StepDefinition[]>([]);
   const [extraction, setExtraction] = useState<T.ExtractionDefinition | null>(null);
@@ -79,8 +88,13 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
   const [flowStepCountMap, setFlowStepCountMap] = useState<Record<string, number>>({});
 
   // Expand states
-  const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(new Set());
-  const [expandedScenarios, setExpandedScenarios] = useState<Set<string>>(new Set());
+  const [expandedCompanies, setExpandedCompanies] = useState<Set<string>>(
+    () => initialNavigation.selectedCompanyId ? new Set([initialNavigation.selectedCompanyId]) : new Set(),
+  );
+  const [expandedScenarios, setExpandedScenarios] = useState<Set<string>>(
+    () => initialNavigation.selectedScenarioId ? new Set([initialNavigation.selectedScenarioId]) : new Set(),
+  );
+  const historyModeRef = useRef<'push' | 'replace' | 'skip'>('replace');
 
   const toggleCompanyExpand = useCallback((id: string) => {
     setExpandedCompanies(prev => {
@@ -98,6 +112,130 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
     });
   }, []);
 
+  const currentNavigationState = useCallback((): WizardNavigationState => (
+    sanitizeNavigationState({
+      activeView,
+      selectedCompanyId,
+      selectedScenarioId,
+      selectedFlowId,
+    })
+  ), [activeView, selectedCompanyId, selectedScenarioId, selectedFlowId]);
+
+  const applyNavigationState = useCallback((nextState: WizardNavigationState) => {
+    setActiveViewState(nextState.activeView);
+    setSelectedCompanyIdState(nextState.selectedCompanyId);
+    setSelectedScenarioIdState(nextState.selectedScenarioId);
+    setSelectedFlowIdState(nextState.selectedFlowId);
+    setExpandedCompanies(prev => {
+      if (!nextState.selectedCompanyId || prev.has(nextState.selectedCompanyId)) {
+        return prev;
+      }
+
+      const next = new Set(prev);
+      next.add(nextState.selectedCompanyId);
+      return next;
+    });
+    setExpandedScenarios(prev => {
+      if (!nextState.selectedScenarioId || prev.has(nextState.selectedScenarioId)) {
+        return prev;
+      }
+
+      const next = new Set(prev);
+      next.add(nextState.selectedScenarioId);
+      return next;
+    });
+  }, []);
+
+  const setActiveView = useCallback((view: T.ViewType) => {
+    historyModeRef.current = 'push';
+    setActiveViewState(view);
+  }, []);
+
+  const setSelectedCompanyId = useCallback((id: string | null) => {
+    historyModeRef.current = 'push';
+    setSelectedCompanyIdState(id);
+    if (id) {
+      setExpandedCompanies(prev => prev.has(id) ? prev : new Set(prev).add(id));
+    }
+
+    if (id !== selectedCompanyId) {
+      setSelectedScenarioIdState(null);
+      setSelectedFlowIdState(null);
+      setFlows([]);
+      setSteps([]);
+      setHtmlCandidates([]);
+      setExtraction(null);
+    }
+  }, [selectedCompanyId]);
+
+  const setSelectedScenarioId = useCallback((id: string | null) => {
+    historyModeRef.current = 'push';
+    setSelectedScenarioIdState(id);
+    if (id) {
+      setExpandedScenarios(prev => prev.has(id) ? prev : new Set(prev).add(id));
+    }
+
+    if (id !== selectedScenarioId) {
+      setSelectedFlowIdState(null);
+      setFlows([]);
+      setSteps([]);
+      setHtmlCandidates([]);
+      if (!id) {
+        setExtraction(null);
+      }
+    }
+  }, [selectedScenarioId]);
+
+  const setSelectedFlowId = useCallback((id: string | null) => {
+    historyModeRef.current = 'push';
+    setSelectedFlowIdState(id);
+
+    if (id !== selectedFlowId) {
+      setSteps([]);
+      setHtmlCandidates([]);
+    }
+  }, [selectedFlowId]);
+
+  useEffect(() => {
+    const syncFromHistory = () => {
+      const nextState = parseNavigationState(window.location.search);
+      if (navigationStatesEqual(nextState, currentNavigationState())) {
+        return;
+      }
+
+      historyModeRef.current = 'skip';
+      applyNavigationState(nextState);
+    };
+
+    window.addEventListener('popstate', syncFromHistory);
+    return () => window.removeEventListener('popstate', syncFromHistory);
+  }, [applyNavigationState, currentNavigationState]);
+
+  useEffect(() => {
+    const nextState = currentNavigationState();
+    const nextSearch = buildNavigationSearch(nextState);
+    const currentSearch = window.location.search || '';
+
+    if (currentSearch === nextSearch) {
+      historyModeRef.current = 'replace';
+      return;
+    }
+
+    if (historyModeRef.current === 'skip') {
+      historyModeRef.current = 'replace';
+      return;
+    }
+
+    const nextUrl = `${window.location.pathname}${nextSearch}${window.location.hash}`;
+    if (historyModeRef.current === 'push') {
+      window.history.pushState(null, '', nextUrl);
+    } else {
+      window.history.replaceState(null, '', nextUrl);
+    }
+
+    historyModeRef.current = 'replace';
+  }, [currentNavigationState]);
+
   const loadCompanies = useCallback(async () => {
     try {
       const data = await api.listCompanies();
@@ -108,26 +246,28 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const selectCompany = useCallback((id: string) => {
-    setSelectedCompanyId(id);
-    setSelectedScenarioId(null);
-    setSelectedFlowId(null);
+    historyModeRef.current = 'push';
+    setSelectedCompanyIdState(id);
+    setSelectedScenarioIdState(null);
+    setSelectedFlowIdState(null);
     setScenarios([]); // Clear stale scenarios
     setFlows([]);    // Clear stale flows
     setSteps([]);    // Clear stale steps
     setHtmlCandidates([]); // Clear stale candidates
-    setActiveView('scenario'); // Navigate to scenarios panel for this company
+    setActiveViewState('scenario'); // Navigate to scenarios panel for this company
 
     // Load scenarios for the company immediately
     api.listScenariosByCompany(id).then(setScenarios).catch(console.error);
   }, []);
 
   const selectScenario = useCallback((id: string, targetView: T.ViewType = 'flow') => {
-    setSelectedScenarioId(id);
-    setSelectedFlowId(null);
+    historyModeRef.current = 'push';
+    setSelectedScenarioIdState(id);
+    setSelectedFlowIdState(null);
     setFlows([]);    // Clear stale flows
     setSteps([]);    // Clear stale steps
     setHtmlCandidates([]); // Clear stale candidates
-    setActiveView(targetView);
+    setActiveViewState(targetView);
 
     // Expand in tree & load flows
     setExpandedScenarios(prev => new Set(prev).add(id));
@@ -142,12 +282,17 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const selectFlow = useCallback((id: string) => {
-    setSelectedFlowId(id);
+    historyModeRef.current = 'push';
+    setSelectedFlowIdState(id || null);
     setSteps([]);
     setHtmlCandidates([]);
-    setActiveView('flow');
+    setActiveViewState('flow');
 
     // Load steps and html candidates for this flow
+    if (!id) {
+      return;
+    }
+
     api.listStepsByFlow(id).then(res => {
       setSteps(res.sort((a, b) => a.orderNo - b.orderNo));
       setFlowStepCountMap(prev => ({ ...prev, [id]: res.length }));
@@ -158,7 +303,8 @@ export const WizardProvider = ({ children }: { children: ReactNode }) => {
   }, []);
 
   const navigateToExecution = useCallback(() => {
-    setActiveView('execution');
+    historyModeRef.current = 'push';
+    setActiveViewState('execution');
   }, []);
 
   const refreshFlowsForScenario = useCallback(async (scenarioId: string) => {
