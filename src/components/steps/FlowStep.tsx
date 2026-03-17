@@ -274,7 +274,7 @@ export const FlowStep: React.FC = () => {
           actionType: stepForm.action,
           selectorType: selectorType,
           selectorValue: selectorValue,
-          inputValueTemplate: stepForm.action === T.ActionType.TypeText || stepForm.action === T.ActionType.ClearAndType
+          inputValueTemplate: stepForm.action === T.ActionType.TypeText || stepForm.action === T.ActionType.ClearAndType || stepForm.action === T.ActionType.SelectOption
             ? stepForm.inputText : undefined,
           timeoutMs: stepForm.timeoutMs,
           retryCount: stepForm.retryCount,
@@ -290,7 +290,7 @@ export const FlowStep: React.FC = () => {
           actionType: stepForm.action,
           selectorType: selectorType,
           selectorValue: selectorValue,
-          inputValueTemplate: stepForm.action === T.ActionType.TypeText || stepForm.action === T.ActionType.ClearAndType
+          inputValueTemplate: stepForm.action === T.ActionType.TypeText || stepForm.action === T.ActionType.ClearAndType || stepForm.action === T.ActionType.SelectOption
             ? stepForm.inputText : undefined,
           timeoutMs: stepForm.timeoutMs,
           retryCount: stepForm.retryCount,
@@ -718,9 +718,9 @@ export const FlowStep: React.FC = () => {
                 </div>
               </div>
 
-              {(stepForm.action === T.ActionType.TypeText || stepForm.action === T.ActionType.ClearAndType) && (
+              {(stepForm.action === T.ActionType.TypeText || stepForm.action === T.ActionType.ClearAndType || stepForm.action === T.ActionType.SelectOption) && (
                 <div className="form-group">
-                  <label>Yazılacak Metin / Değer</label>
+                  <label>Yazılacak Metin / Seçilecek Değer</label>
                   <input
                     type="text"
                     value={stepForm.inputText}
