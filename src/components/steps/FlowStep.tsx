@@ -6,6 +6,12 @@ import * as T from '../../types';
 
 // Interactive tags that we want to capture from HTML
 const INTERACTIVE_TAGS = ['input', 'select', 'button', 'textarea', 'a', 'label', 'option'];
+const OTP_TEMPLATE = '{{company.totpCode}}';
+
+const usesManualInputTemplate = (action: T.ActionType) =>
+  action === T.ActionType.TypeText
+  || action === T.ActionType.ClearAndType
+  || action === T.ActionType.SelectOption;
 
 export const FlowStep: React.FC = () => {
   const {
@@ -47,6 +53,8 @@ export const FlowStep: React.FC = () => {
   const selectedCompany = companies.find(c => c.id === selectedCompanyId);
   const selectedScenario = scenarios.find(s => s.id === selectedScenarioId);
   const selectedFlow = flows.find(f => f.id === selectedFlowId);
+  const isOtpAction = stepForm.action === T.ActionType.TypeOtp;
+  const needsManualInputTemplate = usesManualInputTemplate(stepForm.action);
 
   useEffect(() => {
     if (selectedScenarioId) {
@@ -268,14 +276,19 @@ export const FlowStep: React.FC = () => {
 
     setStepProcessing(true);
     try {
+      const inputValueTemplate = stepForm.action === T.ActionType.TypeOtp
+        ? OTP_TEMPLATE
+        : needsManualInputTemplate
+          ? stepForm.inputText
+          : undefined;
+
       if (editingStepId) {
         await api.updateStep(editingStepId, {
           name: stepForm.stepName,
           actionType: stepForm.action,
           selectorType: selectorType,
           selectorValue: selectorValue,
-          inputValueTemplate: stepForm.action === T.ActionType.TypeText || stepForm.action === T.ActionType.ClearAndType || stepForm.action === T.ActionType.SelectOption
-            ? stepForm.inputText : undefined,
+          inputValueTemplate,
           timeoutMs: stepForm.timeoutMs,
           retryCount: stepForm.retryCount,
           orderNo: stepForm.orderNo,
@@ -290,8 +303,7 @@ export const FlowStep: React.FC = () => {
           actionType: stepForm.action,
           selectorType: selectorType,
           selectorValue: selectorValue,
-          inputValueTemplate: stepForm.action === T.ActionType.TypeText || stepForm.action === T.ActionType.ClearAndType || stepForm.action === T.ActionType.SelectOption
-            ? stepForm.inputText : undefined,
+          inputValueTemplate,
           timeoutMs: stepForm.timeoutMs,
           retryCount: stepForm.retryCount,
         });
@@ -312,7 +324,7 @@ export const FlowStep: React.FC = () => {
       stepName: step.name,
       action: step.actionType,
       selectedCandidateId: '',
-      inputText: step.inputValueTemplate || '',
+      inputText: step.actionType === T.ActionType.TypeOtp ? '' : (step.inputValueTemplate || ''),
       selectorType: step.selectorType,
       selectorValue: step.selectorValue,
       timeoutMs: step.timeoutMs,
@@ -663,7 +675,18 @@ export const FlowStep: React.FC = () => {
                     label: label
                   }))}
                   value={String(stepForm.action)}
-                  onChange={val => setStepForm({ ...stepForm, action: parseInt(val) })}
+                  onChange={val => {
+                    const nextAction = parseInt(val) as T.ActionType;
+                    setStepForm(prev => ({
+                      ...prev,
+                      action: nextAction,
+                      inputText: nextAction === T.ActionType.TypeOtp
+                        ? ''
+                        : prev.action === T.ActionType.TypeOtp && prev.inputText === ''
+                          ? ''
+                          : prev.inputText,
+                    }));
+                  }}
                   placeholder="Eylem seçin..."
                 />
               </div>
@@ -718,7 +741,7 @@ export const FlowStep: React.FC = () => {
                 </div>
               </div>
 
-              {(stepForm.action === T.ActionType.TypeText || stepForm.action === T.ActionType.ClearAndType || stepForm.action === T.ActionType.SelectOption) && (
+              {needsManualInputTemplate && (
                 <div className="form-group">
                   <label>Yazılacak Metin / Seçilecek Değer</label>
                   <input
@@ -728,6 +751,15 @@ export const FlowStep: React.FC = () => {
                     className="modern-input"
                     placeholder="Değer..."
                   />
+                </div>
+              )}
+
+              {isOtpAction && (
+                <div className="form-group">
+                  <label>OTP Kaynağı</label>
+                  <p className="muted small">
+                    Şirket ayarlarındaki Google OTP secret ile runtime kod üretilir ve seçtiğiniz input alanına otomatik yazılır.
+                  </p>
                 </div>
               )}
 

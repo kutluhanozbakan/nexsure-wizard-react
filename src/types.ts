@@ -234,7 +234,8 @@ export enum ActionType {
     Navigate = 9,
     ExtractText = 10,
     ExtractAttribute = 11,
-    ExtractHtml = 12
+    ExtractHtml = 12,
+    TypeOtp = 13
 }
 
 export const ActionTypeLabels: Record<number, string> = {
@@ -251,6 +252,7 @@ export const ActionTypeLabels: Record<number, string> = {
     [ActionType.ExtractText]: 'Metin Çek',
     [ActionType.ExtractAttribute]: 'Attribute Çek',
     [ActionType.ExtractHtml]: 'HTML Çek',
+    [ActionType.TypeOtp]: 'OTP Gir',
 };
 
 export enum SelectorType {
