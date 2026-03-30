@@ -22,6 +22,36 @@ const valueSourceLabel = (valueSourceType: T.ExtractionValueSourceType) => {
   }
 };
 
+const selectorTypeOptions: T.SelectorType[] = [
+  T.SelectorType.Css,
+  T.SelectorType.XPath,
+  T.SelectorType.Id,
+  T.SelectorType.Name,
+  T.SelectorType.Class,
+  T.SelectorType.Placeholder,
+  T.SelectorType.Text,
+  T.SelectorType.Role,
+  T.SelectorType.AttributePair,
+];
+
+const valueSourceOptions: T.ExtractionValueSourceType[] = [
+  'Text',
+  'InputValue',
+  'SelectedOptionText',
+  'SelectedOptionValue',
+  'AttributeValue',
+  'ListText',
+];
+
+const createManualFieldDraft = () => ({
+  name: '',
+  selectorType: T.SelectorType.Id,
+  selectorValue: '',
+  valueSourceType: 'InputValue' as T.ExtractionValueSourceType,
+  attributeName: '',
+  returnMany: false,
+});
+
 const itemKey = (item: Pick<T.ExtractionCandidate, 'valueSourceType' | 'selectorType' | 'selectorValue' | 'attributeName'>) =>
   `${item.valueSourceType}|${item.selectorType}|${item.selectorValue}|${item.attributeName || ''}`;
 
@@ -39,7 +69,7 @@ const candidateScore = (candidate: T.ExtractionCandidate) => {
 const isContentCandidate = (candidate: T.ExtractionCandidate) => {
   const preview = candidate.previewValue?.trim();
   if (!preview) {
-    return false;
+    return candidate.valueSourceType !== 'Text';
   }
 
   if (candidate.valueSourceType === 'Text') {
@@ -93,6 +123,7 @@ export const ExtractionPanel: React.FC = () => {
     showBrowser: false,
     expandInteractiveElements: true,
   });
+  const [manualField, setManualField] = useState(createManualFieldDraft);
 
   const scenario = scenarios.find(s => s.id === selectedScenarioId);
   const scenarioFlows = scenarioFlowsMap[selectedScenarioId || ''] || flows;
@@ -202,13 +233,8 @@ export const ExtractionPanel: React.FC = () => {
     return JSON.stringify(source, null, 2);
   }, [draftPreview, testedResult]);
 
-  const addCandidate = (candidate: T.ExtractionCandidate) => {
-    const candidateId = itemKey(candidate);
-    if (selectedKeys.has(candidateId)) {
-      return;
-    }
-
-    const baseName = slugifyName(candidate.label || candidate.previewValue || 'response_field');
+  const buildUniqueFieldName = (preferredValue: string) => {
+    const baseName = slugifyName(preferredValue);
     let name = baseName;
     let suffix = 2;
     const existingNames = new Set(selectedFields.map(field => field.name));
@@ -216,6 +242,17 @@ export const ExtractionPanel: React.FC = () => {
       name = `${baseName}_${suffix}`;
       suffix += 1;
     }
+
+    return name;
+  };
+
+  const addCandidate = (candidate: T.ExtractionCandidate) => {
+    const candidateId = itemKey(candidate);
+    if (selectedKeys.has(candidateId)) {
+      return;
+    }
+
+    const name = buildUniqueFieldName(candidate.label || candidate.previewValue || 'response_field');
 
     setSelectedFields(prev => [
       ...prev,
@@ -231,6 +268,42 @@ export const ExtractionPanel: React.FC = () => {
         returnMany: candidate.returnMany,
       },
     ]);
+    setTestedResult(null);
+  };
+
+  const addManualField = () => {
+    const selectorValue = manualField.selectorValue.trim();
+    if (!selectorValue) {
+      alert('Manuel alan için selector değeri gerekli.');
+      return;
+    }
+
+    const attributeName = manualField.attributeName.trim();
+    if (manualField.valueSourceType === 'AttributeValue' && !attributeName) {
+      alert('Attribute değeri okumak için attribute adı gerekli.');
+      return;
+    }
+
+    const fieldName = buildUniqueFieldName(manualField.name.trim() || selectorValue);
+    const field: T.ExtractionFieldMapping = {
+      id: `manual-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      name: fieldName,
+      label: manualField.name.trim() || selectorValue,
+      tagName: undefined,
+      selectorType: manualField.selectorType,
+      selectorValue,
+      valueSourceType: manualField.valueSourceType,
+      attributeName: manualField.valueSourceType === 'AttributeValue' ? attributeName : undefined,
+      returnMany: manualField.returnMany,
+    };
+
+    if (selectedKeys.has(itemKey(field))) {
+      alert('Bu selector zaten ekli.');
+      return;
+    }
+
+    setSelectedFields(prev => [...prev, field]);
+    setManualField(createManualFieldDraft());
     setTestedResult(null);
   };
 
@@ -521,6 +594,106 @@ export const ExtractionPanel: React.FC = () => {
               />
             </div>
 
+            <div className="form-stack">
+              <div className="grid-two">
+                <div className="form-group">
+                  <label>Manuel JSON Alanı</label>
+                  <input
+                    type="text"
+                    className="modern-input"
+                    value={manualField.name}
+                    onChange={e => setManualField(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="ornek: net_prim"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Selector Tipi</label>
+                  <select
+                    className="modern-input"
+                    value={manualField.selectorType}
+                    onChange={e => setManualField(prev => ({ ...prev, selectorType: Number(e.target.value) as T.SelectorType }))}
+                  >
+                    {selectorTypeOptions.map(selectorType => (
+                      <option key={selectorType} value={selectorType}>
+                        {T.SelectorTypeLabels[selectorType]}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid-two">
+                <div className="form-group">
+                  <label>Selector Değeri</label>
+                  <input
+                    type="text"
+                    className="modern-input"
+                    value={manualField.selectorValue}
+                    onChange={e => setManualField(prev => ({ ...prev, selectorValue: e.target.value }))}
+                    placeholder="ornek: ctl20_txtNetPrim"
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label>Veri Tipi</label>
+                  <select
+                    className="modern-input"
+                    value={manualField.valueSourceType}
+                    onChange={e => {
+                      const valueSourceType = e.target.value as T.ExtractionValueSourceType;
+                      setManualField(prev => ({
+                        ...prev,
+                        valueSourceType,
+                        attributeName: valueSourceType === 'AttributeValue' ? prev.attributeName : '',
+                      }));
+                    }}
+                  >
+                    {valueSourceOptions.map(valueSourceType => (
+                      <option key={valueSourceType} value={valueSourceType}>
+                        {valueSourceLabel(valueSourceType)}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {manualField.valueSourceType === 'AttributeValue' && (
+                <div className="form-group">
+                  <label>Attribute Adı</label>
+                  <input
+                    type="text"
+                    className="modern-input"
+                    value={manualField.attributeName}
+                    onChange={e => setManualField(prev => ({ ...prev, attributeName: e.target.value }))}
+                    placeholder="ornek: value"
+                  />
+                </div>
+              )}
+
+              <div className="form-group checkbox-group-modern">
+                <label className="checkbox-label">
+                  <input
+                    type="checkbox"
+                    checked={manualField.returnMany}
+                    onChange={e => setManualField(prev => ({ ...prev, returnMany: e.target.checked }))}
+                  />
+                  <span className="checkbox-custom"></span>
+                  <div>
+                    <strong>Çoklu değer döndür</strong>
+                    <p className="muted">Liste veya aynı selector ile birden fazla eleman için kullanın.</p>
+                  </div>
+                </label>
+              </div>
+
+              <div className="form-actions">
+                <button className="btn-outline-modern" type="button" onClick={addManualField}>
+                  <i className="bi bi-plus-lg"></i>
+                  Manuel Alan Ekle
+                </button>
+              </div>
+            </div>
+
             <div className="card-list scrollable">
               {filteredCandidates.map(candidate => {
                 const selected = selectedKeys.has(itemKey(candidate));
@@ -598,6 +771,85 @@ export const ExtractionPanel: React.FC = () => {
                       })}
                       placeholder="ornek: teklif_listesi"
                     />
+                  </div>
+
+                  <div className="grid-two">
+                    <div className="form-group">
+                      <label>Selector Tipi</label>
+                      <select
+                        className="modern-input"
+                        value={field.selectorType}
+                        onChange={e => updateField(field.id, {
+                          selectorType: Number(e.target.value) as T.SelectorType,
+                        })}
+                      >
+                        {selectorTypeOptions.map(selectorType => (
+                          <option key={selectorType} value={selectorType}>
+                            {T.SelectorTypeLabels[selectorType]}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className="form-group">
+                      <label>Veri Tipi</label>
+                      <select
+                        className="modern-input"
+                        value={field.valueSourceType}
+                        onChange={e => {
+                          const valueSourceType = e.target.value as T.ExtractionValueSourceType;
+                          updateField(field.id, {
+                            valueSourceType,
+                            attributeName: valueSourceType === 'AttributeValue' ? field.attributeName : undefined,
+                          });
+                        }}
+                      >
+                        {valueSourceOptions.map(valueSourceType => (
+                          <option key={valueSourceType} value={valueSourceType}>
+                            {valueSourceLabel(valueSourceType)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <label>Selector Değeri</label>
+                    <input
+                      type="text"
+                      className="modern-input"
+                      value={field.selectorValue}
+                      onChange={e => updateField(field.id, { selectorValue: e.target.value })}
+                      placeholder="selector değeri"
+                    />
+                  </div>
+
+                  {field.valueSourceType === 'AttributeValue' && (
+                    <div className="form-group">
+                      <label>Attribute Adı</label>
+                      <input
+                        type="text"
+                        className="modern-input"
+                        value={field.attributeName || ''}
+                        onChange={e => updateField(field.id, { attributeName: e.target.value })}
+                        placeholder="ornek: value"
+                      />
+                    </div>
+                  )}
+
+                  <div className="form-group checkbox-group-modern">
+                    <label className="checkbox-label">
+                      <input
+                        type="checkbox"
+                        checked={field.returnMany}
+                        onChange={e => updateField(field.id, { returnMany: e.target.checked })}
+                      />
+                      <span className="checkbox-custom"></span>
+                      <div>
+                        <strong>Çoklu değer döndür</strong>
+                        <p className="muted">Aynı selector birden fazla eleman döndürüyorsa açın.</p>
+                      </div>
+                    </label>
                   </div>
 
                   <p className="select-card-desc">
