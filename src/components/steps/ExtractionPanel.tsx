@@ -1,3 +1,4 @@
+import axios from 'axios';
 import React, { useEffect, useMemo, useState } from 'react';
 import { useWizardState } from '../../WizardContext';
 import { api } from '../../api';
@@ -46,6 +47,25 @@ const isContentCandidate = (candidate: T.ExtractionCandidate) => {
   }
 
   return true;
+};
+
+const getErrorMessage = (err: unknown, fallback: string) => {
+  if (axios.isAxiosError(err)) {
+    const apiError = err.response?.data?.error;
+    if (typeof apiError === 'string' && apiError.trim()) {
+      return `${fallback}\n\n${apiError}`;
+    }
+
+    if (typeof err.message === 'string' && err.message.trim()) {
+      return `${fallback}\n\n${err.message}`;
+    }
+  }
+
+  if (err instanceof Error && err.message.trim()) {
+    return `${fallback}\n\n${err.message}`;
+  }
+
+  return fallback;
 };
 
 export const ExtractionPanel: React.FC = () => {
@@ -262,7 +282,7 @@ export const ExtractionPanel: React.FC = () => {
       setPreviewPageUrl(result.pageUrl);
     } catch (err) {
       console.error(err);
-      alert('Response alanları taranırken hata oluştu.');
+      alert(getErrorMessage(err, 'Response alanları taranırken hata oluştu.'));
     } finally {
       setScanLoading(false);
     }
@@ -304,7 +324,7 @@ export const ExtractionPanel: React.FC = () => {
       setPreviewPageUrl(result.pageUrl || previewPageUrl);
     } catch (err) {
       console.error(err);
-      alert('Seçilen alanlar test edilirken hata oluştu.');
+      alert(getErrorMessage(err, 'Seçilen alanlar test edilirken hata oluştu.'));
     } finally {
       setTesting(false);
     }
