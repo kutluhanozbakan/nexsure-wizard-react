@@ -38,6 +38,7 @@ export const api = {
     getExtraction: (scenarioId: string) => axios.get<T.ExtractionDefinition>(`${API_BASE}/scenarios/${scenarioId}/extraction`).then(res => res.data).catch(() => null),
     upsertExtraction: (scenarioId: string, data: T.ExtractionUpsertRequest) => axios.put<T.ExtractionDefinition>(`${API_BASE}/scenarios/${scenarioId}/extraction`, data).then(res => res.data),
     previewExtractionCandidates: (scenarioId: string, data: T.ExtractionPreviewRequest) => axios.post<T.ExtractionPreviewResponse>(`${API_BASE}/scenarios/${scenarioId}/extraction/preview-candidates`, data).then(res => res.data),
+    previewExtractionResult: (scenarioId: string, data: T.ExtractionResultPreviewRequest) => axios.post<T.ExtractionResultPreviewResponse>(`${API_BASE}/scenarios/${scenarioId}/extraction/preview-result`, data).then(res => res.data),
 
     // Execution
     runScenario: (scenarioId: string, data: T.RunScenarioRequest) => axios.post<{ scenarioRunId: string }>(`${API_BASE}/scenarios/${scenarioId}/run`, data).then(res => res.data.scenarioRunId),

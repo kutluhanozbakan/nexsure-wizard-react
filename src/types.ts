@@ -116,6 +116,27 @@ export interface ExtractionPreviewResponse {
     candidates: ExtractionCandidate[];
 }
 
+export interface ExtractionResultPreviewRequest {
+    flowDefinitionId: string;
+    selectorType?: SelectorType;
+    selectorValue?: string;
+    extractionType?: ExtractionType;
+    attributeName?: string;
+    returnMany: boolean;
+    sourceMode: ExtractionSourceMode;
+    captureUrl?: string;
+    expandInteractiveElements: boolean;
+    showBrowser: boolean;
+    fields: ExtractionFieldMapping[];
+}
+
+export interface ExtractionResultPreviewResponse {
+    sourceMode: ExtractionSourceMode;
+    pageUrl: string;
+    value?: unknown;
+    fields: Record<string, unknown>;
+}
+
 // ───── Run Models ─────
 export interface ScenarioRunResponse {
     id: string;

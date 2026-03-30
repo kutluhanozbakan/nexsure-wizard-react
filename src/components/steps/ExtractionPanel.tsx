@@ -12,13 +12,40 @@ const slugifyName = (value: string) =>
 
 const valueSourceLabel = (valueSourceType: T.ExtractionValueSourceType) => {
   switch (valueSourceType) {
-    case 'InputValue': return 'Input Değeri';
+    case 'InputValue': return 'Input';
     case 'SelectedOptionText': return 'Seçili Metin';
     case 'SelectedOptionValue': return 'Seçili Değer';
     case 'AttributeValue': return 'Attribute';
     case 'ListText': return 'Liste';
     default: return 'Metin';
   }
+};
+
+const itemKey = (item: Pick<T.ExtractionCandidate, 'valueSourceType' | 'selectorType' | 'selectorValue' | 'attributeName'>) =>
+  `${item.valueSourceType}|${item.selectorType}|${item.selectorValue}|${item.attributeName || ''}`;
+
+const candidateScore = (candidate: T.ExtractionCandidate) => {
+  switch (candidate.valueSourceType) {
+    case 'InputValue': return 0;
+    case 'SelectedOptionText': return 1;
+    case 'SelectedOptionValue': return 2;
+    case 'ListText': return 3;
+    case 'AttributeValue': return 4;
+    default: return 5;
+  }
+};
+
+const isContentCandidate = (candidate: T.ExtractionCandidate) => {
+  const preview = candidate.previewValue?.trim();
+  if (!preview) {
+    return false;
+  }
+
+  if (candidate.valueSourceType === 'Text') {
+    return preview.length >= 3;
+  }
+
+  return true;
 };
 
 export const ExtractionPanel: React.FC = () => {
@@ -32,10 +59,13 @@ export const ExtractionPanel: React.FC = () => {
   } = useWizardState();
 
   const [saving, setSaving] = useState(false);
-  const [previewLoading, setPreviewLoading] = useState(false);
+  const [scanLoading, setScanLoading] = useState(false);
+  const [testing, setTesting] = useState(false);
   const [previewCandidates, setPreviewCandidates] = useState<T.ExtractionCandidate[]>([]);
   const [previewPageUrl, setPreviewPageUrl] = useState('');
   const [selectedFields, setSelectedFields] = useState<T.ExtractionFieldMapping[]>([]);
+  const [scanQuery, setScanQuery] = useState('');
+  const [testedResult, setTestedResult] = useState<T.ExtractionResultPreviewResponse | null>(null);
   const [form, setForm] = useState({
     flowDefinitionId: '',
     sourceMode: 'CurrentContext' as T.ExtractionSourceMode,
@@ -56,6 +86,7 @@ export const ExtractionPanel: React.FC = () => {
         }));
       }
       setSelectedFields([]);
+      setTestedResult(null);
       return;
     }
 
@@ -68,6 +99,7 @@ export const ExtractionPanel: React.FC = () => {
 
     if (extraction.fields.length > 0) {
       setSelectedFields(extraction.fields);
+      setTestedResult(null);
       return;
     }
 
@@ -85,35 +117,78 @@ export const ExtractionPanel: React.FC = () => {
           returnMany: extraction.returnMany,
         },
       ]);
-    }
-  }, [extraction, scenarioFlows]);
-
-  const selectedCandidateIds = useMemo(
-    () => new Set(selectedFields.map(field => `${field.valueSourceType}|${field.selectorType}|${field.selectorValue}|${field.attributeName || ''}`)),
-    [selectedFields]
-  );
-
-  const previewResult = useMemo(() => {
-    const result: Record<string, string> = {};
-    selectedFields.forEach(field => {
-      const candidate = previewCandidates.find(x =>
-        x.valueSourceType === field.valueSourceType
-        && x.selectorType === field.selectorType
-        && x.selectorValue === field.selectorValue
-        && (x.attributeName || '') === (field.attributeName || '')
-      );
-      result[field.name || field.label] = candidate?.previewValue || '(önizleme yok)';
-    });
-    return JSON.stringify(result, null, 2);
-  }, [previewCandidates, selectedFields]);
-
-  const addCandidate = (candidate: T.ExtractionCandidate) => {
-    const candidateKey = `${candidate.valueSourceType}|${candidate.selectorType}|${candidate.selectorValue}|${candidate.attributeName || ''}`;
-    if (selectedCandidateIds.has(candidateKey)) {
+      setTestedResult(null);
       return;
     }
 
-    const baseName = slugifyName(candidate.label);
+    setSelectedFields([]);
+    setTestedResult(null);
+  }, [extraction, scenarioFlows]);
+
+  const selectedKeys = useMemo(
+    () => new Set(selectedFields.map(field => itemKey(field))),
+    [selectedFields]
+  );
+
+  const filteredCandidates = useMemo(() => {
+    const query = scanQuery.trim().toLowerCase();
+
+    return previewCandidates
+      .filter(isContentCandidate)
+      .filter(candidate => {
+        if (!query) {
+          return true;
+        }
+
+        return (
+          candidate.previewValue?.toLowerCase().includes(query)
+          || candidate.label.toLowerCase().includes(query)
+          || candidate.selectorValue.toLowerCase().includes(query)
+        );
+      })
+      .sort((a, b) => {
+        const scoreDiff = candidateScore(a) - candidateScore(b);
+        if (scoreDiff !== 0) {
+          return scoreDiff;
+        }
+
+        return (b.previewValue?.length || 0) - (a.previewValue?.length || 0);
+      });
+  }, [previewCandidates, scanQuery]);
+
+  const candidatePreviewMap = useMemo(() => {
+    const map = new Map<string, string>();
+    previewCandidates.forEach(candidate => {
+      map.set(itemKey(candidate), candidate.previewValue || '');
+    });
+    return map;
+  }, [previewCandidates]);
+
+  const draftPreview = useMemo(() => {
+    const result: Record<string, unknown> = {};
+
+    selectedFields.forEach(field => {
+      const fieldName = field.name.trim() || field.label.trim() || 'response_field';
+      result[fieldName] = candidatePreviewMap.get(itemKey(field)) || '(henüz test edilmedi)';
+    });
+
+    return result;
+  }, [candidatePreviewMap, selectedFields]);
+
+  const previewJson = useMemo(() => {
+    const source = testedResult?.fields && Object.keys(testedResult.fields).length > 0
+      ? testedResult.fields
+      : draftPreview;
+    return JSON.stringify(source, null, 2);
+  }, [draftPreview, testedResult]);
+
+  const addCandidate = (candidate: T.ExtractionCandidate) => {
+    const candidateId = itemKey(candidate);
+    if (selectedKeys.has(candidateId)) {
+      return;
+    }
+
+    const baseName = slugifyName(candidate.label || candidate.previewValue || 'response_field');
     let name = baseName;
     let suffix = 2;
     const existingNames = new Set(selectedFields.map(field => field.name));
@@ -136,28 +211,44 @@ export const ExtractionPanel: React.FC = () => {
         returnMany: candidate.returnMany,
       },
     ]);
+    setTestedResult(null);
+  };
+
+  const toggleCandidate = (candidate: T.ExtractionCandidate) => {
+    const candidateId = itemKey(candidate);
+
+    if (selectedKeys.has(candidateId)) {
+      setSelectedFields(prev => prev.filter(field => itemKey(field) !== candidateId));
+      setTestedResult(null);
+      return;
+    }
+
+    addCandidate(candidate);
   };
 
   const updateField = (id: string, patch: Partial<T.ExtractionFieldMapping>) => {
     setSelectedFields(prev => prev.map(field => field.id === id ? { ...field, ...patch } : field));
+    setTestedResult(null);
   };
 
   const removeField = (id: string) => {
     setSelectedFields(prev => prev.filter(field => field.id !== id));
+    setTestedResult(null);
   };
 
-  const handlePreview = async () => {
+  const handleScan = async () => {
     if (!selectedScenarioId || !form.flowDefinitionId) {
       alert('Önce akış seçin.');
       return;
     }
 
     if (form.sourceMode === 'NavigateToUrl' && !form.captureUrl.trim()) {
-      alert('URL ile analiz için hedef adres gerekli.');
+      alert('URL ile tarama için hedef adres gerekli.');
       return;
     }
 
-    setPreviewLoading(true);
+    setScanLoading(true);
+    setTestedResult(null);
     try {
       const result = await api.previewExtractionCandidates(selectedScenarioId, {
         flowDefinitionId: form.flowDefinitionId,
@@ -171,9 +262,51 @@ export const ExtractionPanel: React.FC = () => {
       setPreviewPageUrl(result.pageUrl);
     } catch (err) {
       console.error(err);
-      alert('Response adayları alınırken hata oluştu.');
+      alert('Response alanları taranırken hata oluştu.');
     } finally {
-      setPreviewLoading(false);
+      setScanLoading(false);
+    }
+  };
+
+  const handleTest = async () => {
+    if (!selectedScenarioId || !form.flowDefinitionId) {
+      alert('Önce akış seçin.');
+      return;
+    }
+
+    if (selectedFields.length === 0) {
+      alert('Test etmek için en az bir alan seçin.');
+      return;
+    }
+
+    if (selectedFields.some(field => !field.name.trim())) {
+      alert('Tüm JSON alanlarına isim vermelisiniz.');
+      return;
+    }
+
+    setTesting(true);
+    try {
+      const result = await api.previewExtractionResult(selectedScenarioId, {
+        flowDefinitionId: form.flowDefinitionId,
+        sourceMode: form.sourceMode,
+        captureUrl: form.sourceMode === 'NavigateToUrl' ? form.captureUrl.trim() : undefined,
+        expandInteractiveElements: form.expandInteractiveElements,
+        showBrowser: form.showBrowser,
+        returnMany: false,
+        fields: selectedFields.map(field => ({
+          ...field,
+          name: field.name.trim(),
+          label: field.label.trim() || field.name.trim(),
+        })),
+      });
+
+      setTestedResult(result);
+      setPreviewPageUrl(result.pageUrl || previewPageUrl);
+    } catch (err) {
+      console.error(err);
+      alert('Seçilen alanlar test edilirken hata oluştu.');
+    } finally {
+      setTesting(false);
     }
   };
 
@@ -185,12 +318,12 @@ export const ExtractionPanel: React.FC = () => {
     }
 
     if (selectedFields.length === 0) {
-      alert('Kaydedilecek en az bir cevap alanı seçin.');
+      alert('Kaydedilecek en az bir alan seçin.');
       return;
     }
 
     if (selectedFields.some(field => !field.name.trim())) {
-      alert('Tüm cevap alanlarına isim vermelisiniz.');
+      alert('Tüm JSON alanlarına isim vermelisiniz.');
       return;
     }
 
@@ -205,14 +338,14 @@ export const ExtractionPanel: React.FC = () => {
         fields: selectedFields.map(field => ({
           ...field,
           name: field.name.trim(),
-          label: field.label.trim(),
+          label: field.label.trim() || field.name.trim(),
         })),
       });
       await refreshExtraction(selectedScenarioId);
-      alert('Sonuç mapping kaydedildi.');
+      alert('Response alanları kaydedildi.');
     } catch (err) {
       console.error(err);
-      alert('Kaydetme sırasında bir hata oluştu.');
+      alert('Kaydetme sırasında hata oluştu.');
     } finally {
       setSaving(false);
     }
@@ -233,20 +366,20 @@ export const ExtractionPanel: React.FC = () => {
         <div className="panel-title-row">
           <i className="bi bi-box-arrow-in-right panel-title-icon"></i>
           <div>
-            <h3>Sonuç Mapping</h3>
-            <p className="muted">Son ekrandaki response alanlarını tarayın, içlerinden sonuç olarak saklanacak cevapları seçin.</p>
+            <h3>Response Alanları</h3>
+            <p className="muted">Son sayfadaki gerçek içerikleri tara, istediklerini tıkla ve JSON alanı olarak kaydet.</p>
           </div>
         </div>
         <div className="breadcrumb-bar">
           <span className="breadcrumb-item"><i className="bi bi-journal-text"></i> {scenario?.name}</span>
           <i className="bi bi-chevron-right breadcrumb-sep"></i>
-          <span className="breadcrumb-item active">Sonuç Mapping</span>
+          <span className="breadcrumb-item active">Response Alanları</span>
         </div>
       </div>
 
       <form onSubmit={handleSave} className="form-stack">
         <div className="glass-card">
-          <h4><i className="bi bi-diagram-3"></i> Kaynak</h4>
+          <h4><i className="bi bi-diagram-3"></i> Tarama Kaynağı</h4>
           <div className="grid-two">
             <div className="form-group">
               <label>Hangi Akıştan Sonra?</label>
@@ -269,7 +402,7 @@ export const ExtractionPanel: React.FC = () => {
                 value={form.sourceMode}
                 onChange={e => setForm(prev => ({ ...prev, sourceMode: e.target.value as T.ExtractionSourceMode }))}
               >
-                <option value="CurrentContext">Seçili akıştan sonraki mevcut bağlam</option>
+                <option value="CurrentContext">Akış bittikten sonraki mevcut sayfa</option>
                 <option value="NavigateToUrl">Ayrı URL'ye gidip tara</option>
               </select>
             </div>
@@ -283,7 +416,7 @@ export const ExtractionPanel: React.FC = () => {
                 className="modern-input"
                 value={form.captureUrl}
                 onChange={e => setForm(prev => ({ ...prev, captureUrl: e.target.value }))}
-                placeholder="https://... veya {{degisken}} kullanabilirsiniz"
+                placeholder="https://... veya {{degisken}}"
               />
             </div>
           )}
@@ -298,8 +431,8 @@ export const ExtractionPanel: React.FC = () => {
                 />
                 <span className="checkbox-custom"></span>
                 <div>
-                  <strong>Dropdown ve gizli alanları açmayı dene</strong>
-                  <p className="muted">Liste, combobox ve açılır yapılar best-effort olarak genişletilir.</p>
+                  <strong>Genişletilebilir alanları açmayı dene</strong>
+                  <p className="muted">Liste ve dropdown içerikleri mümkünse açılır.</p>
                 </div>
               </label>
             </div>
@@ -314,17 +447,29 @@ export const ExtractionPanel: React.FC = () => {
                 <span className="checkbox-custom"></span>
                 <div>
                   <strong>Tarayıcıyı göster</strong>
-                  <p className="muted">Preview sırasında canlı tarayıcı açılır.</p>
+                  <p className="muted">Tarama sırasında canlı tarayıcı açılır.</p>
                 </div>
               </label>
             </div>
           </div>
 
           <div className="form-actions">
-            <button className="btn-modern" type="button" onClick={handlePreview} disabled={previewLoading}>
-              <i className={`bi ${previewLoading ? 'bi-hourglass-split' : 'bi-search'}`}></i>
-              {previewLoading ? 'Response alanları taranıyor...' : 'Response Alanlarını Tara'}
+            <button className="btn-modern" type="button" onClick={handleScan} disabled={scanLoading}>
+              <i className={`bi ${scanLoading ? 'bi-hourglass-split' : 'bi-search'}`}></i>
+              {scanLoading ? 'Taranıyor...' : 'Response Alanlarını Tara'}
             </button>
+            <button className="btn-outline-modern" type="button" onClick={handleTest} disabled={testing || selectedFields.length === 0}>
+              <i className={`bi ${testing ? 'bi-hourglass-split' : 'bi-braces'}`}></i>
+              {testing ? 'JSON test ediliyor...' : 'Seçilen JSON Alanlarını Test Et'}
+            </button>
+          </div>
+
+          <div className="info-box-modern mt-4">
+            <i className="bi bi-funnel"></i>
+            <div>
+              <h4>Tarama Mantığı</h4>
+              <p>Menü ve buton metinleri yerine, input içerikleri, seçili değerler, liste satırları ve veri taşıyan alanlar öne çıkarılır.</p>
+            </div>
           </div>
 
           {previewPageUrl && (
@@ -341,35 +486,44 @@ export const ExtractionPanel: React.FC = () => {
         <div className="grid-two">
           <div className="glass-card">
             <div className="card-header-row">
-              <h4><i className="bi bi-list-ul"></i> Bulunan Response Adayları</h4>
-              <span className="count-badge">{previewCandidates.length}</span>
+              <h4><i className="bi bi-search"></i> Bulunan İçerikler</h4>
+              <span className="count-badge">{filteredCandidates.length}</span>
+            </div>
+
+            <div className="form-group">
+              <label>İçerik Ara</label>
+              <input
+                type="text"
+                className="modern-input"
+                value={scanQuery}
+                onChange={e => setScanQuery(e.target.value)}
+                placeholder="örnek: plaka, teklif, tc, fiyat..."
+              />
             </div>
 
             <div className="card-list scrollable">
-              {previewCandidates.map(candidate => {
-                const candidateKey = `${candidate.valueSourceType}|${candidate.selectorType}|${candidate.selectorValue}|${candidate.attributeName || ''}`;
-                const isSelected = selectedCandidateIds.has(candidateKey);
+              {filteredCandidates.map(candidate => {
+                const selected = selectedKeys.has(itemKey(candidate));
 
                 return (
                   <div
-                    key={candidate.id}
-                    className={`select-card ${isSelected ? 'selected' : ''}`}
-                    onClick={() => addCandidate(candidate)}
+                    key={`${candidate.id}-${itemKey(candidate)}`}
+                    className={`select-card ${selected ? 'selected' : ''}`}
+                    onClick={() => toggleCandidate(candidate)}
                     role="button"
                     tabIndex={0}
                     onKeyDown={e => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
-                        addCandidate(candidate);
+                        toggleCandidate(candidate);
                       }
                     }}
                   >
                     <div className="select-card-main">
                       <div className="select-card-info">
-                        <strong>{candidate.label}</strong>
+                        <strong>{candidate.previewValue || 'Değer yok'}</strong>
                         <span className="action-badge">{valueSourceLabel(candidate.valueSourceType)}</span>
                         {candidate.tagName && <span className="action-badge">{candidate.tagName}</span>}
-                        <span className="selector-mono">{candidate.selectorValue}</span>
                       </div>
                       <div className="select-card-actions">
                         <button
@@ -377,24 +531,27 @@ export const ExtractionPanel: React.FC = () => {
                           type="button"
                           onClick={e => {
                             e.stopPropagation();
-                            addCandidate(candidate);
+                            toggleCandidate(candidate);
                           }}
-                          disabled={isSelected}
-                          title="Cevap olarak ekle"
+                          title={selected ? 'Seçimi kaldır' : 'JSON alanı olarak ekle'}
                         >
-                          <i className={`bi ${isSelected ? 'bi-check-lg' : 'bi-plus-lg'}`}></i>
+                          <i className={`bi ${selected ? 'bi-dash-lg' : 'bi-plus-lg'}`}></i>
                         </button>
                       </div>
                     </div>
-                    <p className="select-card-desc">{candidate.previewValue || 'Önizleme değeri yok.'}</p>
+                    <p className="select-card-desc">
+                      {candidate.label}
+                      {candidate.attributeName ? ` • @${candidate.attributeName}` : ''}
+                    </p>
+                    <p className="select-card-desc selector-mono">{candidate.selectorValue}</p>
                   </div>
                 );
               })}
 
-              {previewCandidates.length === 0 && (
+              {filteredCandidates.length === 0 && (
                 <div className="empty-state">
                   <i className="bi bi-search"></i>
-                  <span>Henüz taranan response adayı yok.</span>
+                  <span>Tarama sonrası gösterilecek içerik bulunamadı.</span>
                 </div>
               )}
             </div>
@@ -402,7 +559,7 @@ export const ExtractionPanel: React.FC = () => {
 
           <div className="glass-card">
             <div className="card-header-row">
-              <h4><i className="bi bi-bookmark-check"></i> Seçilen Sonuç Alanları</h4>
+              <h4><i className="bi bi-braces-asterisk"></i> JSON Alanları</h4>
               <span className="count-badge">{selectedFields.length}</span>
             </div>
 
@@ -410,32 +567,28 @@ export const ExtractionPanel: React.FC = () => {
               {selectedFields.map(field => (
                 <div key={field.id} className="select-card">
                   <div className="form-group">
-                    <label>Alan Adı</label>
+                    <label>JSON Alan Adı</label>
                     <input
                       type="text"
                       className="modern-input"
                       value={field.name}
-                      onChange={e => updateField(field.id, { name: e.target.value })}
-                      placeholder="ornek: teklif_no"
+                      onChange={e => updateField(field.id, {
+                        name: e.target.value,
+                        label: e.target.value,
+                      })}
+                      placeholder="ornek: teklif_listesi"
                     />
                   </div>
 
-                  <div className="form-group">
-                    <label>Etiket</label>
-                    <input
-                      type="text"
-                      className="modern-input"
-                      value={field.label}
-                      onChange={e => updateField(field.id, { label: e.target.value })}
-                    />
-                  </div>
-
-                  <div className="select-card-desc">
+                  <p className="select-card-desc">
+                    {candidatePreviewMap.get(itemKey(field)) || field.label}
+                  </p>
+                  <p className="select-card-desc">
                     {valueSourceLabel(field.valueSourceType)}
                     {field.tagName ? ` • <${field.tagName}>` : ''}
                     {field.attributeName ? ` • @${field.attributeName}` : ''}
-                    {` • ${field.selectorValue}`}
-                  </div>
+                  </p>
+                  <p className="select-card-desc selector-mono">{field.selectorValue}</p>
 
                   <div className="form-actions">
                     <button className="btn-outline-modern" type="button" onClick={() => removeField(field.id)}>
@@ -447,8 +600,8 @@ export const ExtractionPanel: React.FC = () => {
 
               {selectedFields.length === 0 && (
                 <div className="empty-state">
-                  <i className="bi bi-bookmark"></i>
-                  <span>Henüz final sonuç alanı seçilmedi.</span>
+                  <i className="bi bi-braces"></i>
+                  <span>Henüz JSON alanı seçmediniz.</span>
                 </div>
               )}
             </div>
@@ -457,9 +610,10 @@ export const ExtractionPanel: React.FC = () => {
 
         <div className="glass-card">
           <div className="card-header-row">
-            <h4><i className="bi bi-code-square"></i> Sonuç Önizlemesi</h4>
+            <h4><i className="bi bi-code-square"></i> JSON Önizlemesi</h4>
+            <span className="action-badge">{testedResult ? 'Canlı test sonucu' : 'Tarama taslağı'}</span>
           </div>
-          <pre className="result-pre">{previewResult}</pre>
+          <pre className="result-pre">{previewJson}</pre>
         </div>
 
         <div className="form-actions">
@@ -469,7 +623,7 @@ export const ExtractionPanel: React.FC = () => {
             disabled={saving}
           >
             <i className={`bi ${saving ? 'bi-hourglass-split' : 'bi-save'}`}></i>
-            {saving ? 'Kaydediliyor...' : 'Sonuç Mappingini Kaydet'}
+            {saving ? 'Kaydediliyor...' : 'JSON Alanlarını Kaydet'}
           </button>
         </div>
       </form>
