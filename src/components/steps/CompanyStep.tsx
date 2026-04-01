@@ -13,6 +13,15 @@ type CompanyFormState = {
   googleSecretKey: string;
 };
 
+const extractErrorMessage = (err: unknown): string => {
+  if (err && typeof err === 'object' && 'response' in err) {
+    const data = (err as any).response?.data;
+    if (data?.error) return data.error;
+  }
+  if (err instanceof Error) return err.message;
+  return String(err);
+};
+
 const emptyForm = (): CompanyFormState => ({
   code: '',
   name: '',
@@ -28,6 +37,7 @@ export const CompanyStep: React.FC = () => {
   const { setCompanies, companies, selectedCompanyId, selectCompany, loadCompanies, setActiveView } = useWizardState();
   const [loading, setLoading] = React.useState(false);
   const [editingId, setEditingId] = React.useState<string | null>(null);
+  const [deletingId, setDeletingId] = React.useState<string | null>(null);
   const [form, setForm] = React.useState<CompanyFormState>(emptyForm);
 
   useEffect(() => {
@@ -76,6 +86,18 @@ export const CompanyStep: React.FC = () => {
       alert('Firma kaydi sirasinda hata olustu.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!deletingId) return;
+    try {
+      await api.deleteCompany(deletingId);
+      setCompanies(companies.filter(c => c.id !== deletingId));
+      if (selectedCompanyId === deletingId) selectCompany('');
+      setDeletingId(null);
+    } catch (err) {
+      alert('Firma silinirken hata olustu: ' + extractErrorMessage(err));
     }
   };
 
@@ -147,6 +169,17 @@ export const CompanyStep: React.FC = () => {
                     >
                       <i className="bi bi-pencil-square"></i>
                     </button>
+                    <button
+                      className="icon-btn delete"
+                      type="button"
+                      onClick={e => {
+                        e.stopPropagation();
+                        setDeletingId(company.id);
+                      }}
+                      title="Firmayi sil"
+                    >
+                      <i className="bi bi-trash"></i>
+                    </button>
                   </div>
                 </div>
 
@@ -168,6 +201,26 @@ export const CompanyStep: React.FC = () => {
               </div>
             )}
           </div>
+
+          {deletingId && (
+            <div className="alert-danger-inline">
+              <div className="alert-danger-body">
+                <i className="bi bi-exclamation-triangle-fill"></i>
+                <span>
+                  <strong>Bu firmaya ait tum senaryolar, flowlar, adimlar ve calisma gecmisi kalici olarak silinecek.</strong> Emin misiniz?
+                </span>
+              </div>
+              <div className="alert-danger-actions">
+                <button className="btn-modern danger-sm" type="button" onClick={handleDelete}>
+                  <i className="bi bi-trash"></i> Evet, Sil
+                </button>
+                <button className="btn-outline-modern sm" type="button" onClick={() => setDeletingId(null)}>
+                  Iptal
+                </button>
+              </div>
+            </div>
+          )}
+
         </div>
 
         <div className="glass-card sticky-form">

@@ -8,6 +8,7 @@ export const api = {
     listCompanies: () => axios.get<T.Company[]>(`${API_BASE}/companies`).then(res => res.data),
     createCompany: (data: T.CompanyCreateRequest) => axios.post<T.Company>(`${API_BASE}/companies`, data).then(res => res.data),
     updateCompany: (id: string, data: T.CompanyUpdateRequest) => axios.put<T.Company>(`${API_BASE}/companies/${id}`, data).then(res => res.data),
+    deleteCompany: (id: string) => axios.delete<void>(`${API_BASE}/companies/${id}`),
 
     // Scenarios
     listScenariosByCompany: (companyId: string) => axios.get<T.Scenario[]>(`${API_BASE}/scenarios/by-company/${companyId}`).then(res => res.data),
