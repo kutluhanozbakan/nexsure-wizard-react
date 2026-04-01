@@ -50,6 +50,7 @@ export interface StepDefinition {
     continueOnError: boolean;
     expectedValue?: string;
     outputVariableName?: string;
+    metadataJson?: string;
 }
 
 export interface HtmlCandidate {
@@ -390,6 +391,7 @@ export interface StepCreateRequest {
     inputValueTemplate?: string;
     timeoutMs: number;
     retryCount: number;
+    metadataJson?: string;
 }
 
 export interface StepUpdateRequest {
@@ -401,6 +403,7 @@ export interface StepUpdateRequest {
     inputValueTemplate?: string;
     timeoutMs?: number;
     retryCount?: number;
+    metadataJson?: string;
 }
 
 export interface ExtractionUpsertRequest {

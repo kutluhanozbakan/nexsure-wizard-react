@@ -8,6 +8,15 @@ import * as T from '../../types';
 const INTERACTIVE_TAGS = ['input', 'select', 'button', 'textarea', 'a', 'label', 'option'];
 const OTP_TEMPLATE = '{{company.totpCode}}';
 
+const extractErrorMessage = (err: unknown): string => {
+  if (err && typeof err === 'object' && 'response' in err) {
+    const data = (err as any).response?.data;
+    if (data?.error) return data.error;
+  }
+  if (err instanceof Error) return err.message;
+  return String(err);
+};
+
 const usesManualInputTemplate = (action: T.ActionType) =>
   action === T.ActionType.TypeText
   || action === T.ActionType.ClearAndType
@@ -46,6 +55,10 @@ export const FlowStep: React.FC = () => {
     timeoutMs: 30000,
     retryCount: 0,
     orderNo: 1,
+    waitForNetwork: false,
+    waitTimeoutMs: 10000,
+    confirmSelector: '',
+    pressTabAfter: false,
   });
   const [stepProcessing, setStepProcessing] = useState(false);
   const [editingStepId, setEditingStepId] = useState<string | null>(null);
@@ -200,7 +213,7 @@ export const FlowStep: React.FC = () => {
       }
     } catch (err) {
       console.error(err);
-      alert('Analiz sırasında hata oluştu.');
+      alert('Analiz sırasında hata oluştu: ' + extractErrorMessage(err));
     } finally {
       setAnalyzing(false);
     }
@@ -228,7 +241,7 @@ export const FlowStep: React.FC = () => {
       await handleRuntimeAnalysisResult(result);
     } catch (err) {
       console.error(err);
-      alert('Canlı sayfa analizi sırasında hata oluştu.');
+      alert('Canlı sayfa analizi sırasında hata oluştu: ' + extractErrorMessage(err));
     } finally {
       setAnalyzing(false);
     }
@@ -247,7 +260,7 @@ export const FlowStep: React.FC = () => {
       await handleRuntimeAnalysisResult(result);
     } catch (err) {
       console.error(err);
-      alert('URL üzerinden analiz sırasında hata oluştu.');
+      alert('URL üzerinden analiz sırasında hata oluştu: ' + extractErrorMessage(err));
     } finally {
       setAnalyzing(false);
     }
@@ -282,6 +295,18 @@ export const FlowStep: React.FC = () => {
           ? stepForm.inputText
           : undefined;
 
+      const hasMeta = stepForm.waitForNetwork || stepForm.pressTabAfter;
+      const metadataJson = hasMeta
+        ? JSON.stringify({
+            ...(stepForm.pressTabAfter ? { pressTabAfter: true } : {}),
+            ...(stepForm.waitForNetwork ? {
+              waitForAutoFill: true,
+              waitTimeoutMs: stepForm.waitTimeoutMs,
+              ...(stepForm.confirmSelector.trim() ? { confirmSelector: stepForm.confirmSelector.trim() } : {}),
+            } : {}),
+          })
+        : undefined;
+
       if (editingStepId) {
         await api.updateStep(editingStepId, {
           name: stepForm.stepName,
@@ -292,6 +317,7 @@ export const FlowStep: React.FC = () => {
           timeoutMs: stepForm.timeoutMs,
           retryCount: stepForm.retryCount,
           orderNo: stepForm.orderNo,
+          metadataJson,
         });
         await refreshStepsForFlow(selectedFlowId);
         setEditingStepId(null);
@@ -306,10 +332,11 @@ export const FlowStep: React.FC = () => {
           inputValueTemplate,
           timeoutMs: stepForm.timeoutMs,
           retryCount: stepForm.retryCount,
+          metadataJson,
         });
         setSteps([...steps, step]);
       }
-      setStepForm({ stepName: '', action: T.ActionType.Click, selectedCandidateId: '', inputText: '', selectorType: T.SelectorType.Css, selectorValue: '', timeoutMs: 30000, retryCount: 0, orderNo: steps.length + 1 });
+      setStepForm({ stepName: '', action: T.ActionType.Click, selectedCandidateId: '', inputText: '', selectorType: T.SelectorType.Css, selectorValue: '', timeoutMs: 30000, retryCount: 0, orderNo: steps.length + 1, waitForNetwork: false, waitTimeoutMs: 10000, confirmSelector: '', pressTabAfter: false });
     } catch (err) {
       console.error(err);
       alert('Adım işlemi sırasında hata oluştu.');
@@ -320,6 +347,19 @@ export const FlowStep: React.FC = () => {
 
   const startEditStep = (step: T.StepDefinition) => {
     setEditingStepId(step.id);
+    let waitForNetwork = false;
+    let waitTimeoutMs = 10000;
+    let confirmSelector = '';
+    let pressTabAfter = false;
+    try {
+      if (step.metadataJson) {
+        const meta = JSON.parse(step.metadataJson);
+        waitForNetwork = !!meta.waitForAutoFill;
+        pressTabAfter = !!meta.pressTabAfter;
+        if (meta.waitTimeoutMs) waitTimeoutMs = meta.waitTimeoutMs;
+        if (meta.confirmSelector) confirmSelector = meta.confirmSelector;
+      }
+    } catch { /* ignore */ }
     setStepForm({
       stepName: step.name,
       action: step.actionType,
@@ -330,6 +370,10 @@ export const FlowStep: React.FC = () => {
       timeoutMs: step.timeoutMs,
       retryCount: step.retryCount,
       orderNo: step.orderNo,
+      waitForNetwork,
+      waitTimeoutMs,
+      confirmSelector,
+      pressTabAfter,
     });
     setActiveTab('steps');
   };
@@ -348,7 +392,7 @@ export const FlowStep: React.FC = () => {
 
   const cancelEditStep = () => {
     setEditingStepId(null);
-    setStepForm({ stepName: '', action: T.ActionType.Click, selectedCandidateId: '', inputText: '', selectorType: T.SelectorType.Css, selectorValue: '', timeoutMs: 30000, retryCount: 0, orderNo: 1 });
+    setStepForm({ stepName: '', action: T.ActionType.Click, selectedCandidateId: '', inputText: '', selectorType: T.SelectorType.Css, selectorValue: '', timeoutMs: 30000, retryCount: 0, orderNo: 1, waitForNetwork: false, waitTimeoutMs: 10000, confirmSelector: '', pressTabAfter: false });
   };
 
   return (
@@ -754,6 +798,62 @@ export const FlowStep: React.FC = () => {
                 </div>
               )}
 
+              {needsManualInputTemplate && (
+                <div className="form-group">
+                  <label className="checkbox-label" style={{ marginBottom: 8 }}>
+                    <input
+                      type="checkbox"
+                      checked={stepForm.pressTabAfter}
+                      onChange={e => setStepForm({ ...stepForm, pressTabAfter: e.target.checked })}
+                    />
+                    <span className="checkbox-custom"></span>
+                    <div>
+                      <strong>Yazdıktan sonra Tab'a bas</strong>
+                      <p className="muted">Input'tan çıkarak blur / değişim olayını tetikler.</p>
+                    </div>
+                  </label>
+                  <label className="checkbox-label">
+                    <input
+                      type="checkbox"
+                      checked={stepForm.waitForNetwork}
+                      onChange={e => setStepForm({ ...stepForm, waitForNetwork: e.target.checked })}
+                    />
+                    <span className="checkbox-custom"></span>
+                    <div>
+                      <strong>Girdi sonrası ağ bekleme</strong>
+                      <p className="muted">Metin girildikten sonra sayfa yüklemesi tamamlanana kadar bekler (örn: TC girişi sonrası otomatik doldurmalar).</p>
+                    </div>
+                  </label>
+                  {stepForm.waitForNetwork && (
+                    <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <div>
+                        <label>Maksimum bekleme süresi (ms)</label>
+                        <input
+                          type="number"
+                          className="modern-input"
+                          min={1000}
+                          max={60000}
+                          step={1000}
+                          value={stepForm.waitTimeoutMs}
+                          onChange={e => setStepForm({ ...stepForm, waitTimeoutMs: Number(e.target.value) })}
+                        />
+                      </div>
+                      <div>
+                        <label>Doğrulama alanı (CSS selector) <span className="muted">— opsiyonel</span></label>
+                        <input
+                          type="text"
+                          className="modern-input"
+                          placeholder="örn: #adSoyad, input[name='name']"
+                          value={stepForm.confirmSelector}
+                          onChange={e => setStepForm({ ...stepForm, confirmSelector: e.target.value })}
+                        />
+                        <p className="muted small" style={{ marginTop: 4 }}>Bu alan dolana kadar bekler. NetworkIdle'dan sonra ek güvence sağlar.</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {isOtpAction && (
                 <div className="form-group">
                   <label>OTP Kaynağı</label>
@@ -794,6 +894,9 @@ export const FlowStep: React.FC = () => {
                     <div className="select-card-info">
                       <strong>{step.name}</strong>
                       <span className="action-badge">{T.ActionTypeLabels[step.actionType] || 'Bilinmeyen'}</span>
+                      {step.metadataJson && (() => { try { return JSON.parse(step.metadataJson).waitForAutoFill; } catch { return false; } })() && (
+                        <span className="action-badge" title="Girdi sonrası ağ bekleme aktif"><i className="bi bi-hourglass-split"></i> Bekle</span>
+                      )}
                       <span className="selector-mono">{step.selectorValue?.substring(0, 40)}</span>
                     </div>
                     <div className="select-card-actions">
