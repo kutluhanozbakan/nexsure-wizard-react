@@ -14,10 +14,8 @@ export const HomeView: React.FC = () => {
         <div className="home-hero-icon">
           <i className="bi bi-robot"></i>
         </div>
-        <h2>Nexsure Oto'ya Hoş Geldiniz</h2>
-        <p className="muted">
-          Web otomasyon senaryolarınızı oluşturun, düzenleyin ve çalıştırın.
-        </p>
+        <h2>Hızlı Teklif'e Hoş Geldiniz</h2>
+      
       </div>
 
       <div className="home-stats">

@@ -59,8 +59,8 @@ const WizardContent = () => {
             <i className="bi bi-robot"></i>
           </div>
           <div>
-            <h1>Nexsure Oto</h1>
-            <div className="tagline">Next-Gen RPA Automation Platform</div>
+            <h1>Hızlı Teklif</h1>
+            <div className="tagline">Sigorta Teklif Platformu</div>
           </div>
         </div>
         <button
